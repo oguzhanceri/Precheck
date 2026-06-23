@@ -242,7 +242,7 @@ export default function DashboardPage() {
 
   return (
     <main className="min-h-screen overflow-hidden bg-[#070b15] text-[#e7e9f4]">
-      <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.035)_1px,transparent_1px)] bg-[size:32px_32px]" />
+      <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.035)_1px,transparent_1px)] bg-size-[32px_32px]" />
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_40%_0%,rgba(66,104,255,0.13),transparent_35%),linear-gradient(180deg,rgba(10,15,28,0.1),#070b15_80%)]" />
 
       <div className="relative z-10 flex min-h-screen">
@@ -278,7 +278,7 @@ export default function DashboardPage() {
                     <button
                       type="button"
                       onClick={() => setIsDateOpen((current) => !current)}
-                      className="inline-flex h-8 cursor-pointer items-center gap-3 rounded-md border border-white/[0.12] bg-[#111827]/70 px-3 text-[11px] font-bold text-[#b9c1d1] transition hover:border-white/25 hover:bg-white/[0.06]"
+                      className="inline-flex h-8 cursor-pointer items-center gap-3 rounded-md border border-white/12 bg-[#111827]/70 px-3 text-[11px] font-bold text-[#b9c1d1] transition hover:border-white/25 hover:bg-white/6"
                     >
                       <Icon name="calendar" className="size-4" />
                       {selectedDateRange}
@@ -286,7 +286,7 @@ export default function DashboardPage() {
                     </button>
 
                     {isDateOpen && (
-                      <Dropdown className="right-0 top-10 w-[240px]">
+                      <Dropdown className="right-0 top-10 w-60">
                         {dateRanges.map((range) => (
                           <button
                             key={range}
@@ -330,7 +330,7 @@ export default function DashboardPage() {
               </div>
 
               <div className="mt-6 grid gap-6 xl:grid-cols-[1.25fr_0.88fr]">
-                <section className="rounded-xl border border-white/[0.09] bg-[#0d1423]/88 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+                <section className="rounded-xl border border-white/9 bg-[#0d1423]/88 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
                   <div className="flex items-center justify-between">
                     <h2 className="text-[17px] font-extrabold tracking-[-0.02em]">
                       Son 30 Gün Analiz Performansı
@@ -342,13 +342,13 @@ export default function DashboardPage() {
                         onClick={() =>
                           setIsChartViewOpen((current) => !current)
                         }
-                        className="inline-flex h-8 cursor-pointer items-center gap-3 rounded-md border border-white/[0.08] bg-white/[0.06] px-4 text-[12px] font-bold text-[#aeb6c8] transition hover:border-white/20 hover:bg-white/[0.09]"
+                        className="inline-flex h-8 cursor-pointer items-center gap-3 rounded-md border border-white/8 bg-white/6 px-4 text-[12px] font-bold text-[#aeb6c8] transition hover:border-white/20 hover:bg-white/9"
                       >
                         {selectedChartView} <span>⌄</span>
                       </button>
 
                       {isChartViewOpen && (
-                        <Dropdown className="right-0 top-10 w-[130px]">
+                        <Dropdown className="right-0 top-10 w-32.5">
                           {chartViews.map((view) => (
                             <button
                               key={view}
@@ -373,7 +373,7 @@ export default function DashboardPage() {
 
                   <ChartArea />
 
-                  <div className="flex items-center justify-center gap-9 border-t border-white/[0.05] pt-5 text-[12px] font-bold text-[#a5adbd]">
+                  <div className="flex items-center justify-center gap-9 border-t border-white/5 pt-5 text-[12px] font-bold text-[#a5adbd]">
                     <span className="inline-flex items-center gap-2">
                       <span className="size-3 rounded-sm bg-[#667085]" />
                       Analiz Sayısı
@@ -385,14 +385,14 @@ export default function DashboardPage() {
                   </div>
                 </section>
 
-                <section className="rounded-xl border border-white/[0.09] bg-[#0d1423]/88 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+                <section className="rounded-xl border border-white/9 bg-[#0d1423]/88 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
                   <h2 className="text-[17px] font-extrabold tracking-[-0.02em]">
                     Sağlık Dağılımı
                   </h2>
 
                   <div className="mt-9 flex justify-center">
-                    <div className="relative grid size-[190px] place-items-center rounded-full bg-[conic-gradient(#21c995_0_30%,#4084ff_30%_56%,#f7a928_56%_75%,#8a5cff_75%_88%,#ff515f_88%_100%)]">
-                      <div className="grid size-[116px] place-items-center rounded-full bg-[#0d1423]">
+                    <div className="relative grid size-47.5 place-items-center rounded-full bg-[conic-gradient(#21c995_0_30%,#4084ff_30%_56%,#f7a928_56%_75%,#8a5cff_75%_88%,#ff515f_88%_100%)]">
+                      <div className="grid size-29 place-items-center rounded-full bg-[#0d1423]">
                         <div className="text-center">
                           <p className="text-[34px] font-extrabold tracking-tighter">
                             92
@@ -422,7 +422,7 @@ export default function DashboardPage() {
                             desc: `${item.label} kategorisinin son analizlerdeki ortalama sağlık skoru.`,
                           })
                         }
-                        className="flex w-full cursor-pointer items-center justify-between rounded-md text-[13px] font-bold transition hover:bg-white/[0.04]"
+                        className="flex w-full cursor-pointer items-center justify-between rounded-md text-[13px] font-bold transition hover:bg-white/4"
                       >
                         <span className="inline-flex items-center gap-3 text-[#9ea7b8]">
                           <span className={`size-2 rounded-full ${item.color}`} />
@@ -436,14 +436,14 @@ export default function DashboardPage() {
                   <button
                     type="button"
                     onClick={() => openReport()}
-                    className="mt-7 inline-flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-white/[0.07] bg-[#0b111e] text-[13px] font-extrabold text-[#c7cfe0] transition hover:border-white/20 hover:bg-white/[0.06]"
+                    className="mt-7 inline-flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-white/[0.07] bg-[#0b111e] text-[13px] font-extrabold text-[#c7cfe0] transition hover:border-white/20 hover:bg-white/6"
                   >
                     Detaylı Raporu İncele <span>→</span>
                   </button>
                 </section>
               </div>
 
-              <section className="mt-6 overflow-hidden rounded-xl border border-white/[0.09] bg-[#0d1423]/88 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+              <section className="mt-6 overflow-hidden rounded-xl border border-white/9 bg-[#0d1423]/88 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
                 <div className="px-6 py-6">
                   <h2 className="text-[17px] font-extrabold tracking-[-0.02em]">
                     Son Analizler
@@ -451,9 +451,9 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[820px] border-collapse">
+                  <table className="w-full min-w-205 border-collapse">
                     <thead>
-                      <tr className="bg-white/[0.055] text-left text-[11px] font-extrabold uppercase tracking-[0.08em] text-[#8f98aa]">
+                      <tr className="bg-white/5.5 text-left text-[11px] font-extrabold uppercase tracking-[0.08em] text-[#8f98aa]">
                         <th className="px-6 py-4">Site</th>
                         <th className="px-6 py-4">Tarih</th>
                         <th className="px-6 py-4">Skor</th>
@@ -466,7 +466,7 @@ export default function DashboardPage() {
                       {rows.map((row) => (
                         <tr
                           key={row.site}
-                          className="border-t border-white/[0.045] transition hover:bg-white/[0.025]"
+                          className="border-t border-white/4.5 transition hover:bg-white/2.5"
                         >
                           <td className="px-6 py-5">
                             <button
@@ -535,7 +535,7 @@ export default function DashboardPage() {
                             </div>
 
                             {openRowMenu === row.site && (
-                              <Dropdown className="right-5 top-12 w-[170px]">
+                              <Dropdown className="right-5 top-12 w-42.5">
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -578,7 +578,7 @@ export default function DashboardPage() {
                 <button
                   type="button"
                   onClick={() => router.push("/history")}
-                  className="flex h-12 w-full cursor-pointer items-center justify-center gap-2 border-t border-white/[0.045] text-[13px] font-extrabold text-[#aebcff] transition hover:bg-white/[0.04]"
+                  className="flex h-12 w-full cursor-pointer items-center justify-center gap-2 border-t border-white/4.5 text-[13px] font-extrabold text-[#aebcff] transition hover:bg-white/4"
                 >
                   Tüm analiz geçmişini görüntüle <span>→</span>
                 </button>
@@ -586,7 +586,7 @@ export default function DashboardPage() {
             </div>
 
             <aside className="space-y-6">
-              <section className="rounded-xl border border-white/[0.09] bg-[#0d1423]/88 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+              <section className="rounded-xl border border-white/9 bg-[#0d1423]/88 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
                 <h2 className="text-[17px] font-extrabold tracking-[-0.02em]">
                   Hızlı İşlemler
                 </h2>
@@ -604,7 +604,7 @@ export default function DashboardPage() {
                   <button
                     type="button"
                     onClick={() => openReport()}
-                    className="flex h-10 w-full cursor-pointer items-center justify-center gap-3 rounded-md bg-white/[0.17] text-[13px] font-extrabold text-[#d7dcea] transition hover:bg-white/[0.22]"
+                    className="flex h-10 w-full cursor-pointer items-center justify-center gap-3 rounded-md bg-white/17 text-[13px] font-extrabold text-[#d7dcea] transition hover:bg-white/22"
                   >
                     <Icon name="file" className="size-4" />
                     Demo Raporu Aç
@@ -613,7 +613,7 @@ export default function DashboardPage() {
                   <button
                     type="button"
                     onClick={handleCsvExport}
-                    className="flex h-10 w-full cursor-pointer items-center justify-center gap-3 rounded-md bg-white/[0.17] text-[13px] font-extrabold text-[#d7dcea] transition hover:bg-white/[0.22]"
+                    className="flex h-10 w-full cursor-pointer items-center justify-center gap-3 rounded-md bg-white/17 text-[13px] font-extrabold text-[#d7dcea] transition hover:bg-white/22"
                   >
                     <Icon name="download" className="size-4" />
                     CSV Dışa Aktar
@@ -621,8 +621,8 @@ export default function DashboardPage() {
                 </div>
               </section>
 
-              <section className="overflow-hidden rounded-xl border border-white/[0.09] bg-[#0d1423]/88 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-                <div className="flex items-center justify-between border-b border-white/[0.05] px-5 py-5">
+              <section className="overflow-hidden rounded-xl border border-white/9 bg-[#0d1423]/88 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+                <div className="flex items-center justify-between border-b border-white/5 px-5 py-5">
                   <h2 className="text-[17px] font-extrabold tracking-[-0.02em]">
                     Son Uyarılar
                   </h2>
@@ -637,7 +637,7 @@ export default function DashboardPage() {
                       key={alert.title}
                       type="button"
                       onClick={() => setSelectedAlert(alert)}
-                      className="flex w-full cursor-pointer gap-3 rounded-md text-left transition hover:bg-white/[0.04]"
+                      className="flex w-full cursor-pointer gap-3 rounded-md text-left transition hover:bg-white/4"
                     >
                       <span
                         className={`mt-1.5 size-2 shrink-0 rounded-full ${alert.color}`}
@@ -658,7 +658,7 @@ export default function DashboardPage() {
                 <button
                   type="button"
                   onClick={() => router.push("/history?filter=alerts")}
-                  className="flex h-12 w-full cursor-pointer items-center justify-center gap-2 border-t border-white/[0.05] text-[13px] font-extrabold text-[#aebcff] transition hover:bg-white/[0.04]"
+                  className="flex h-12 w-full cursor-pointer items-center justify-center gap-2 border-t border-white/5 text-[13px] font-extrabold text-[#aebcff] transition hover:bg-white/4"
                 >
                   Tüm uyarıları görüntüle <span>→</span>
                 </button>
@@ -683,7 +683,7 @@ export default function DashboardPage() {
       {selectedStat && (
         <Modal onClose={() => setSelectedStat(null)} maxWidth="max-w-[520px]">
           <ModalHeader title={selectedStat.title} onClose={() => setSelectedStat(null)} />
-          <div className="mt-6 rounded-xl border border-white/[0.08] bg-[#080d18]/70 p-5">
+          <div className="mt-6 rounded-xl border border-white/8 bg-[#080d18]/70 p-5">
             <p className="text-[42px] font-extrabold tracking-tighter">
               {selectedStat.value}
             </p>
@@ -701,7 +701,7 @@ export default function DashboardPage() {
         <Modal onClose={() => setSelectedAlert(null)} maxWidth="max-w-[560px]">
           <ModalHeader title="Uyarı Detayı" onClose={() => setSelectedAlert(null)} />
           <div className="mt-6 space-y-4">
-            <div className="rounded-xl border border-white/[0.08] bg-[#080d18]/70 p-5">
+            <div className="rounded-xl border border-white/8 bg-[#080d18]/70 p-5">
               <p className="text-[12px] font-extrabold uppercase tracking-[0.08em] text-[#aebcff]">
                 {selectedAlert.level} Öncelik
               </p>
@@ -744,7 +744,7 @@ export default function DashboardPage() {
             <button
               type="button"
               onClick={() => startNewScan(selectedRow.url)}
-              className="h-10 cursor-pointer rounded-md border border-white/[0.12] px-5 text-[13px] font-extrabold text-[#d8deeb] transition hover:bg-white/[0.06]"
+              className="h-10 cursor-pointer rounded-md border border-white/12 px-5 text-[13px] font-extrabold text-[#d8deeb] transition hover:bg-white/6"
             >
               Tekrar Tara
             </button>
@@ -788,7 +788,7 @@ export default function DashboardPage() {
             <button
               type="button"
               onClick={() => setIsLogoutOpen(false)}
-              className="h-10 cursor-pointer rounded-md border border-white/[0.12] px-5 text-[13px] font-extrabold text-[#d8deeb] transition hover:bg-white/[0.06]"
+              className="h-10 cursor-pointer rounded-md border border-white/12 px-5 text-[13px] font-extrabold text-[#d8deeb] transition hover:bg-white/6"
             >
               Vazgeç
             </button>
@@ -814,8 +814,8 @@ function Sidebar({
   onLogout: () => void;
 }) {
   return (
-    <aside className="hidden w-[268px] shrink-0 border-r border-white/[0.08] bg-[#0c111d]/90 lg:flex lg:flex-col">
-      <div className="flex h-[76px] items-center gap-3 border-b border-white/[0.07] px-8">
+    <aside className="hidden w-67 shrink-0 border-r border-white/8 bg-[#0c111d]/90 lg:flex lg:flex-col">
+      <div className="flex h-19 items-center gap-3 border-b border-white/[0.07] px-8">
         <div className="grid size-9 place-items-center rounded-lg bg-[#a9baff] text-[#08101f]">
           <Icon name="settings" className="size-5" />
         </div>
@@ -837,7 +837,7 @@ function Sidebar({
               href={item.href}
               className={`flex h-10 cursor-pointer items-center gap-4 rounded-md px-4 text-[14px] font-bold transition ${
                 item.active
-                  ? "bg-white/[0.17] text-white"
+                  ? "bg-white/17 text-white"
                   : "text-[#a5adbe] hover:bg-white/[0.07] hover:text-white"
               }`}
             >
@@ -848,13 +848,13 @@ function Sidebar({
         </div>
       </nav>
 
-      <div className="border-t border-white/[0.11] px-5 py-5">
-        <div className="rounded-lg border border-white/[0.09] bg-[#111827]/80 p-4">
+      <div className="border-t border-white/11 px-5 py-5">
+        <div className="rounded-lg border border-white/9 bg-[#111827]/80 p-4">
           <div className="flex items-center justify-between text-[12px] font-bold text-[#c6ccda]">
             <span>Tarama kredisi</span>
             <span className="text-[#9ea7ba]">2.450 / 5.000</span>
           </div>
-          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/[0.08]">
+          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/8">
             <div className="h-full w-[49%] rounded-full bg-[#a9baff]" />
           </div>
           <div className="mt-3 flex items-center justify-between gap-3 text-[11px] font-bold text-[#858fa4]">
@@ -902,7 +902,7 @@ function Topbar({
   onSettings: () => void;
 }) {
   return (
-    <header className="flex h-[66px] items-center justify-between border-b border-white/[0.08] bg-[#080d18]/75 px-6 backdrop-blur-xl">
+    <header className="flex h-16.5 items-center justify-between border-b border-white/8 bg-[#080d18]/75 px-6 backdrop-blur-xl">
       <nav className="hidden items-center gap-8 lg:flex">
         {navItems.map((item) => (
           <Link
@@ -914,7 +914,7 @@ function Topbar({
           >
             {item.label}
             {item.active && (
-              <span className="absolute -bottom-[22px] left-0 h-px w-full bg-[#b9c7ff]" />
+              <span className="absolute -bottom-5.5 left-0 h-px w-full bg-[#b9c7ff]" />
             )}
           </Link>
         ))}
@@ -939,7 +939,7 @@ function Topbar({
           <Icon name="settings" className="size-5" />
         </button>
 
-        <div className="relative hidden items-center gap-3 border-l border-white/[0.09] pl-5 md:flex">
+        <div className="relative hidden items-center gap-3 border-l border-white/9 pl-5 md:flex">
           <button
             type="button"
             onClick={onWorkspaceToggle}
@@ -957,7 +957,7 @@ function Topbar({
           </button>
 
           {isWorkspaceOpen && (
-            <Dropdown className="right-0 top-12 w-[190px]">
+            <Dropdown className="right-0 top-12 w-47.5">
               <button
                 type="button"
                 onClick={onWorkspaceClose}
@@ -982,7 +982,7 @@ function Topbar({
           )}
         </div>
 
-        <div className="hidden items-center gap-3 border-l border-white/[0.09] pl-5 md:flex">
+        <div className="hidden items-center gap-3 border-l border-white/9 pl-5 md:flex">
           <div className="grid size-9 place-items-center rounded-full bg-[#293145] text-[12px] font-bold text-[#c6cee0]">
             AS
           </div>
@@ -998,12 +998,12 @@ function Topbar({
 
 function ChartArea() {
   return (
-    <div className="relative mt-6 h-[330px] overflow-hidden rounded-lg px-1 pb-6 pt-5">
+    <div className="relative mt-6 h-82.5 overflow-hidden rounded-lg px-1 pb-6 pt-5">
       <div className="absolute left-0 top-2 rounded-sm bg-white/[0.14] px-2 py-1 text-[10px] font-extrabold text-[#b8c1d4]">
         22 MAY <span className="ml-3 text-[#dce3f4]">Skor: 92</span>
       </div>
 
-      <div className="absolute inset-x-0 bottom-[66px] top-7 flex flex-col justify-between text-[10px] font-medium text-[#505a70]">
+      <div className="absolute inset-x-0 bottom-16.5 top-7 flex flex-col justify-between text-[10px] font-medium text-[#505a70]">
         {[100, 75, 50, 25, 0].map((item) => (
           <div key={item} className="flex items-center gap-3">
             <span className="w-8 text-right">{item}</span>
@@ -1012,7 +1012,7 @@ function ChartArea() {
         ))}
       </div>
 
-      <div className="absolute bottom-[66px] left-12 right-0 flex h-[245px] items-end gap-[9px]">
+      <div className="absolute bottom-16.5 left-12 right-0 flex h-61.25 items-end gap-2.25">
         {bars.map((bar, index) => (
           <span
             key={index}
@@ -1023,7 +1023,7 @@ function ChartArea() {
       </div>
 
       <svg
-        className="absolute bottom-[142px] left-12 right-0 h-[120px] w-[calc(100%-48px)] overflow-visible"
+        className="absolute bottom-35.5 left-12 right-0 h-30 w-[calc(100%-48px)] overflow-visible"
         viewBox="0 0 620 120"
         fill="none"
       >
@@ -1058,7 +1058,7 @@ function StatCard({
     <button
       type="button"
       onClick={onClick}
-      className="relative cursor-pointer overflow-hidden rounded-xl border border-white/[0.09] bg-[#0d1423]/88 p-5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/[0.055]"
+      className="relative cursor-pointer overflow-hidden rounded-xl border border-white/9 bg-[#0d1423]/88 p-5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/5.5"
     >
       <div className="flex items-start justify-between">
         <p className="text-[14px] font-bold text-[#aeb6c7]">{title}</p>
@@ -1123,7 +1123,7 @@ function Dropdown({
 }) {
   return (
     <div
-      className={`absolute z-40 rounded-lg border border-white/[0.09] bg-[#0d1423] p-2 shadow-2xl ${className}`}
+      className={`absolute z-40 rounded-lg border border-white/9 bg-[#0d1423] p-2 shadow-2xl ${className}`}
     >
       {children}
     </div>
@@ -1146,7 +1146,7 @@ function Modal({
     >
       <div
         onClick={(event) => event.stopPropagation()}
-        className={`w-full ${maxWidth} cursor-default rounded-2xl border border-white/[0.1] bg-[#0d1423] p-6 shadow-2xl`}
+        className={`w-full ${maxWidth} cursor-default rounded-2xl border border-white/10 bg-[#0d1423] p-6 shadow-2xl`}
       >
         {children}
       </div>
@@ -1156,7 +1156,7 @@ function Modal({
 
 function ModalHeader({ title, onClose }: { title: string; onClose: () => void }) {
   return (
-    <div className="flex items-start justify-between gap-5 border-b border-white/[0.08] pb-5">
+    <div className="flex items-start justify-between gap-5 border-b border-white/8 pb-5">
       <h2 className="text-[22px] font-extrabold">{title}</h2>
       <button
         type="button"
@@ -1171,11 +1171,11 @@ function ModalHeader({ title, onClose }: { title: string; onClose: () => void })
 
 function DetailBox({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-white/[0.08] bg-[#080d18]/70 p-4">
+    <div className="rounded-lg border border-white/8 bg-[#080d18]/70 p-4">
       <p className="text-[11px] font-extrabold uppercase tracking-[0.08em] text-[#7f899d]">
         {label}
       </p>
-      <p className="mt-2 break-words text-[14px] font-bold text-[#dce2ef]">
+      <p className="mt-2 wrap-break-word text-[14px] font-bold text-[#dce2ef]">
         {value}
       </p>
     </div>

@@ -50,7 +50,7 @@ export function AppShell({
 
           <div className="mt-6 rounded-[1.75rem] border border-cyan-300/20 bg-cyan-300/10 p-5">
             <p className="text-xs font-medium uppercase tracking-[0.22em] text-cyan-100/70">Sistem</p>
-            <p className="mt-3 text-2xl font-semibold tracking-[-0.05em]">Online</p>
+            <p className="mt-3 text-2xl font-semibold tracking-tighter">Online</p>
             <p className="mt-2 text-sm leading-6 text-white/60">
               Tarama modülleri hazır. SEO, responsive, performans ve UI kontrolleri aktif.
             </p>
@@ -58,7 +58,7 @@ export function AppShell({
         </aside>
 
         <section className="p-4 sm:p-6 lg:p-8">
-          <header className="mb-6 flex flex-col gap-4 rounded-[2rem] border border-white/10 bg-white/[0.05] p-5 backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between">
+          <header className="mb-6 flex flex-col gap-4 rounded-4xl border border-white/10 bg-white/5 p-5 backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-xs font-medium uppercase tracking-[0.24em] text-cyan-100/60">
                 {eyebrow ?? "Kontrol Merkezi"}

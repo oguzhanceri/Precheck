@@ -149,12 +149,26 @@ export default function ScannerPage() {
     modules.map((moduleItem) => moduleItem.title),
   );
   const [scanMessage, setScanMessage] = useState("");
+  const [scanMessageType, setScanMessageType] = useState<"success" | "error">(
+    "success",
+  );
   const [isAddPageOpen, setIsAddPageOpen] = useState(false);
   const [newPagePath, setNewPagePath] = useState("");
   const [customPages, setCustomPages] = useState<PageScopeOption[]>([]);
+  const [isStartingScan, setIsStartingScan] = useState(false);
 
   const selectedModuleCount = enabledModules.length;
   const allPageScopeOptions = [...pageScopeOptions, ...customPages];
+
+  const setErrorMessage = (message: string) => {
+    setScanMessageType("error");
+    setScanMessage(message);
+  };
+
+  const setSuccessMessage = (message: string) => {
+    setScanMessageType("success");
+    setScanMessage(message);
+  };
 
   const togglePageScope = (value: string) => {
     setSelectedPages((current) => {
@@ -170,7 +184,7 @@ export default function ScannerPage() {
     const trimmedPath = newPagePath.trim();
 
     if (!trimmedPath) {
-      setScanMessage("Lütfen eklenecek sayfa path'ini girin.");
+      setErrorMessage("Lütfen eklenecek sayfa path'ini girin.");
       return;
     }
 
@@ -232,36 +246,72 @@ export default function ScannerPage() {
     });
   };
 
-  const handleStartScan = () => {
+  const handleStartScan = async () => {
     const cleanedTargetUrl = targetUrl
       .trim()
       .replace(/^https?:\/\//, "")
       .replace(/\/$/, "");
 
     if (!cleanedTargetUrl) {
-      setScanMessage("Lütfen analiz etmek istediğiniz alan adını girin.");
+      setErrorMessage("Lütfen analiz etmek istediğiniz alan adını girin.");
       return;
     }
 
     if (scopeType === "manual-pages" && !selectedPages.length) {
-      setScanMessage("Belirli sayfa taraması için en az bir sayfa seçmelisiniz.");
+      setErrorMessage(
+        "Belirli sayfa taraması için en az bir sayfa seçmelisiniz.",
+      );
       return;
     }
 
     if (!selectedDevices.length) {
-      setScanMessage("En az bir cihaz kapsamı seçmelisiniz.");
+      setErrorMessage("En az bir cihaz kapsamı seçmelisiniz.");
       return;
     }
 
     if (!enabledModules.length) {
-      setScanMessage("En az bir analiz modülü seçmelisiniz.");
+      setErrorMessage("En az bir analiz modülü seçmelisiniz.");
       return;
     }
 
     const fullUrl = `${protocol}${cleanedTargetUrl}`;
 
-    setScanMessage(`${fullUrl} için tarama başlatılıyor...`);
-    router.push(`/live?url=${encodeURIComponent(fullUrl)}`);
+    setIsStartingScan(true);
+    setSuccessMessage(`${fullUrl} için tarama başlatılıyor...`);
+
+    try {
+      const response = await fetch("/api/scans", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          url: fullUrl,
+          scopeType,
+          crawlDepth,
+          selectedPages,
+          selectedDevices,
+          enabledModules,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message ?? "Tarama başlatılamadı.");
+      }
+
+      router.push(
+        `/live?scanId=${data.scan.id}&url=${encodeURIComponent(fullUrl)}`,
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Tarama başlatılamadı.";
+
+      setErrorMessage(message);
+    } finally {
+      setIsStartingScan(false);
+    }
   };
 
   return (
@@ -275,7 +325,7 @@ export default function ScannerPage() {
         <section className="min-w-0 flex-1">
           <Topbar />
 
-          <div className="grid gap-6 px-6 py-8 xl:grid-cols-[1fr_220px] 2xl:grid-cols-[1fr_255px]">
+          <div className="grid gap-6 px-4 py-6 sm:px-6 lg:py-8 xl:grid-cols-[1fr_220px] 2xl:grid-cols-[1fr_255px]">
             <div className="min-w-0">
               <div className="flex items-start justify-between gap-5">
                 <div>
@@ -289,14 +339,14 @@ export default function ScannerPage() {
 
                 <Link
                   href="/history"
-                  className="hidden h-10 items-center gap-2 rounded-md border border-white/[0.12] bg-[#111827]/70 px-4 text-[13px] font-bold text-[#c4cad8] transition hover:border-white/25 hover:bg-white/[0.06] lg:inline-flex"
+                  className="hidden h-10 cursor-pointer items-center gap-2 rounded-md border border-white/[0.12] bg-[#111827]/70 px-4 text-[13px] font-bold text-[#c4cad8] transition hover:border-white/25 hover:bg-white/[0.06] lg:inline-flex"
                 >
                   <Icon name="history" className="size-4" />
                   Geçmiş Taramalar
                 </Link>
               </div>
 
-              <section className="mt-9 rounded-xl border border-white/[0.09] bg-[#0d1423]/88 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+              <section className="mt-9 rounded-xl border border-white/[0.09] bg-[#0d1423]/88 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] sm:p-6">
                 <div className="grid gap-4 lg:grid-cols-[1fr_220px]">
                   <div>
                     <label className="mb-2 block text-[11px] font-extrabold uppercase tracking-[0.1em] text-[#9ba5ba]">
@@ -307,7 +357,7 @@ export default function ScannerPage() {
                       <select
                         value={protocol}
                         onChange={(event) => setProtocol(event.target.value)}
-                        className="w-[96px] appearance-none border-r border-white/[0.08] bg-white/[0.04] px-4 text-[15px] font-bold text-[#c8d1e4] outline-none"
+                        className="w-[96px] cursor-pointer appearance-none border-r border-white/[0.08] bg-white/[0.04] px-4 text-[15px] font-bold text-[#c8d1e4] outline-none"
                       >
                         {protocolOptions.map((option) => (
                           <option
@@ -339,7 +389,7 @@ export default function ScannerPage() {
                           setScanMessage("");
                         }}
                         placeholder="ornek-site.com"
-                        className="min-w-0 flex-1 bg-transparent px-5 text-[16px] font-medium text-white outline-none placeholder:text-[#606a7e]"
+                        className="min-w-0 flex-1 cursor-text bg-transparent px-5 text-[16px] font-medium text-white outline-none placeholder:text-[#606a7e]"
                       />
                     </div>
                   </div>
@@ -347,22 +397,26 @@ export default function ScannerPage() {
                   <button
                     type="button"
                     onClick={handleStartScan}
-                    className="mt-auto h-[58px] rounded-lg bg-[#2f6df6] px-7 text-[20px] font-extrabold text-white shadow-[0_14px_38px_rgba(47,109,246,0.34)] transition hover:-translate-y-0.5 hover:bg-[#3b7aff]"
+                    disabled={isStartingScan}
+                    className="mt-auto h-[58px] cursor-pointer rounded-lg bg-[#2f6df6] px-7 text-[18px] font-extrabold text-white shadow-[0_14px_38px_rgba(47,109,246,0.34)] transition hover:-translate-y-0.5 hover:bg-[#3b7aff] disabled:cursor-not-allowed disabled:opacity-60 sm:text-[20px]"
                   >
-                    Taramayı Başlat
+                    {isStartingScan ? "Başlatılıyor..." : "Taramayı Başlat"}
                   </button>
                 </div>
 
                 <div className="mt-5 flex flex-col gap-2">
                   <p className="flex items-center gap-2 text-[13px] font-medium text-[#aebcff]">
                     <Icon name="info" className="size-4" />
-                    Sadece doğruladığınız veya yetkiniz olan alan adlarını tarayın.
+                    Sadece doğruladığınız veya yetkiniz olan alan adlarını
+                    tarayın.
                   </p>
 
                   {scanMessage && (
                     <p
                       className={`text-[13px] font-bold ${
-                        targetUrl.trim() ? "text-[#25d18c]" : "text-[#ff777d]"
+                        scanMessageType === "error"
+                          ? "text-[#ff777d]"
+                          : "text-[#25d18c]"
                       }`}
                     >
                       {scanMessage}
@@ -371,8 +425,8 @@ export default function ScannerPage() {
                 </div>
               </section>
 
-              <section className="mt-6 rounded-xl border border-white/[0.09] bg-[#0d1423]/88 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-                <div className="flex items-center justify-between border-b border-white/[0.09] pb-5">
+              <section className="mt-6 rounded-xl border border-white/[0.09] bg-[#0d1423]/88 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] sm:p-6">
+                <div className="flex flex-col gap-4 border-b border-white/[0.09] pb-5 sm:flex-row sm:items-center sm:justify-between">
                   <h2 className="flex items-center gap-3 text-[22px] font-extrabold tracking-[-0.04em]">
                     <Icon name="target" className="size-5 text-[#aebcff]" />
                     Tarama Kapsamı
@@ -381,7 +435,7 @@ export default function ScannerPage() {
                   <button
                     type="button"
                     onClick={() => setIsAddPageOpen((current) => !current)}
-                    className="text-[13px] font-bold text-[#aeb6c8] transition hover:text-white"
+                    className="cursor-pointer text-left text-[13px] font-bold text-[#aeb6c8] transition hover:text-white sm:text-right"
                   >
                     + Sayfa Ekle
                   </button>
@@ -420,20 +474,21 @@ export default function ScannerPage() {
                           }
                         }}
                         placeholder="/kampanya/yaz-indirimi"
-                        className="h-10 min-w-0 flex-1 rounded-md border border-white/[0.12] bg-[#070b15] px-4 text-[14px] font-medium text-white outline-none placeholder:text-[#606a7e] focus:border-[#7f8fca]"
+                        className="h-10 min-w-0 flex-1 cursor-text rounded-md border border-white/[0.12] bg-[#070b15] px-4 text-[14px] font-medium text-white outline-none placeholder:text-[#606a7e] focus:border-[#7f8fca]"
                       />
 
                       <button
                         type="button"
                         onClick={handleAddCustomPage}
-                        className="h-10 rounded-md bg-[#2f6df6] px-5 text-[13px] font-extrabold text-white transition hover:bg-[#3b7aff]"
+                        className="h-10 cursor-pointer rounded-md bg-[#2f6df6] px-5 text-[13px] font-extrabold text-white transition hover:bg-[#3b7aff]"
                       >
                         Ekle
                       </button>
                     </div>
 
                     <p className="mt-2 text-[12px] font-medium text-[#7f899d]">
-                      Örnek: /hakkimizda, /urun/akilli-telefon-pro, /blog/web-performans
+                      Örnek: /hakkimizda, /urun/akilli-telefon-pro,
+                      /blog/web-performans
                     </p>
                   </div>
                 )}
@@ -454,7 +509,7 @@ export default function ScannerPage() {
                         <button
                           type="button"
                           onClick={() => togglePageScope(item.value)}
-                          className="flex h-full items-center px-4"
+                          className="flex h-full cursor-pointer items-center px-4"
                         >
                           {isSelected && <span className="mr-2">✓</span>}
                           {item.label}
@@ -464,7 +519,7 @@ export default function ScannerPage() {
                           <button
                             type="button"
                             onClick={() => removeCustomPage(item.value)}
-                            className="flex h-full items-center border-l border-white/[0.12] px-3 text-[#aab2c4] transition hover:bg-white/[0.08] hover:text-white"
+                            className="flex h-full cursor-pointer items-center border-l border-white/[0.12] px-3 text-[#aab2c4] transition hover:bg-white/[0.08] hover:text-white"
                             aria-label={`${item.label} sayfasını kaldır`}
                           >
                             ×
@@ -476,7 +531,7 @@ export default function ScannerPage() {
                 </div>
               </section>
 
-              <section className="mt-6 rounded-xl border border-white/[0.09] bg-[#0d1423]/88 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+              <section className="mt-6 rounded-xl border border-white/[0.09] bg-[#0d1423]/88 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] sm:p-6">
                 <h2 className="flex items-center gap-3 text-[22px] font-extrabold tracking-[-0.04em]">
                   <Icon name="device" className="size-5 text-[#aebcff]" />
                   Cihaz Kapsamı
@@ -496,14 +551,14 @@ export default function ScannerPage() {
                 </div>
               </section>
 
-              <section className="mt-6 rounded-xl border border-white/[0.09] bg-[#0d1423]/88 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-                <div className="flex items-center justify-between border-b border-white/[0.09] pb-5">
+              <section className="mt-6 rounded-xl border border-white/[0.09] bg-[#0d1423]/88 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] sm:p-6">
+                <div className="flex flex-col gap-4 border-b border-white/[0.09] pb-5 sm:flex-row sm:items-center sm:justify-between">
                   <h2 className="flex items-center gap-3 text-[22px] font-extrabold tracking-[-0.04em]">
                     <Icon name="module" className="size-5 text-[#aebcff]" />
                     Analiz Modülleri
                   </h2>
 
-                  <span className="rounded-md bg-white/[0.08] px-2.5 py-1 text-[11px] font-extrabold text-[#aeb6c8]">
+                  <span className="w-fit rounded-md bg-white/[0.08] px-2.5 py-1 text-[11px] font-extrabold text-[#aeb6c8]">
                     {selectedModuleCount}/{modules.length} Seçili
                   </span>
                 </div>
@@ -521,11 +576,14 @@ export default function ScannerPage() {
               </section>
 
               <section className="mt-6 overflow-hidden rounded-xl border border-white/[0.09] bg-[#0d1423]/88 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-                <div className="flex items-center justify-between px-6 py-5">
+                <div className="flex items-center justify-between px-4 py-5 sm:px-6">
                   <h2 className="text-[22px] font-extrabold tracking-[-0.04em]">
                     Son Hedefler
                   </h2>
-                  <Link href="/history" className="text-[13px] font-bold text-[#aebcff]">
+                  <Link
+                    href="/history"
+                    className="cursor-pointer text-[13px] font-bold text-[#aebcff] transition hover:text-white"
+                  >
                     Tümünü Gör
                   </Link>
                 </div>
@@ -544,7 +602,10 @@ export default function ScannerPage() {
                     </thead>
                     <tbody>
                       {recentTargets.map((row) => (
-                        <tr key={row.site} className="border-b border-white/[0.06]">
+                        <tr
+                          key={row.site}
+                          className="border-b border-white/[0.06] transition hover:bg-white/[0.025]"
+                        >
                           <td className="px-6 py-5">
                             <p className="text-[14px] font-extrabold text-[#dce1ef]">
                               {row.site}
@@ -561,7 +622,9 @@ export default function ScannerPage() {
                               <Icon name="speed" className="size-4" />
                               <Icon name="search" className="size-4" />
                               <Icon name="shield" className="size-4" />
-                              <span className="text-[12px] font-bold text-[#b8c0d0]">+6</span>
+                              <span className="text-[12px] font-bold text-[#b8c0d0]">
+                                +6
+                              </span>
                             </div>
                           </td>
                           <td className="px-6 py-5">
@@ -572,9 +635,40 @@ export default function ScannerPage() {
                           </td>
                           <td className="px-6 py-5">
                             <div className="flex items-center justify-end gap-4 text-[#aab2c4]">
-                              <Icon name="chart" className="size-4" />
-                              <Icon name="refresh" className="size-4" />
-                              <Icon name="trash" className="size-4" />
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  router.push(
+                                    `/report?url=${encodeURIComponent(row.url)}`,
+                                  )
+                                }
+                                className="cursor-pointer transition hover:text-white"
+                              >
+                                <Icon name="chart" className="size-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setProtocol(
+                                    row.url.startsWith("http://")
+                                      ? "http://"
+                                      : "https://",
+                                  );
+                                  setTargetUrl(
+                                    row.url.replace(/^https?:\/\//, ""),
+                                  );
+                                  setScanMessage("");
+                                }}
+                                className="cursor-pointer transition hover:text-white"
+                              >
+                                <Icon name="refresh" className="size-4" />
+                              </button>
+                              <button
+                                type="button"
+                                className="cursor-pointer transition hover:text-[#ff777d]"
+                              >
+                                <Icon name="trash" className="size-4" />
+                              </button>
                             </div>
                           </td>
                         </tr>
@@ -601,8 +695,12 @@ function Sidebar() {
           <Icon name="brand" className="size-5" />
         </div>
         <div>
-          <p className="text-[17px] font-extrabold tracking-[-0.03em]">Precheck AI</p>
-          <p className="text-[12px] font-medium text-[#8f98aa]">Enterprise Tier</p>
+          <p className="text-[17px] font-extrabold tracking-[-0.03em]">
+            Precheck AI
+          </p>
+          <p className="text-[12px] font-medium text-[#8f98aa]">
+            Enterprise Tier
+          </p>
         </div>
       </div>
 
@@ -612,7 +710,7 @@ function Sidebar() {
             <Link
               key={item.label}
               href={item.href}
-              className={`flex h-11 items-center gap-4 rounded-md px-4 text-[14px] font-bold transition ${
+              className={`flex h-11 cursor-pointer items-center gap-4 rounded-md px-4 text-[14px] font-bold transition ${
                 item.active
                   ? "bg-[#4a566e] text-white"
                   : "text-[#a5adbe] hover:bg-white/[0.07] hover:text-white"
@@ -636,16 +734,21 @@ function Sidebar() {
           </div>
           <div className="mt-3 flex items-center justify-between text-[11px] font-bold text-[#858fa4]">
             <span>Yenileme: 10 Haz 2025</span>
-            <span className="text-[#b8c5ff]">Paketleri İncele</span>
+            <Link
+              href="/pricing"
+              className="cursor-pointer text-[#b8c5ff] transition hover:text-white"
+            >
+              Paketleri İncele
+            </Link>
           </div>
         </div>
 
         <div className="mt-5 space-y-2">
-          <button className="flex h-9 w-full items-center gap-4 rounded-md px-4 text-[14px] font-bold text-[#a5adbe]">
+          <button className="flex h-9 w-full cursor-pointer items-center gap-4 rounded-md px-4 text-[14px] font-bold text-[#a5adbe] transition hover:bg-white/[0.06] hover:text-white">
             <Icon name="help" className="size-4" />
             Destek
           </button>
-          <button className="flex h-9 w-full items-center gap-4 rounded-md px-4 text-[14px] font-bold text-[#a5adbe]">
+          <button className="flex h-9 w-full cursor-pointer items-center gap-4 rounded-md px-4 text-[14px] font-bold text-[#a5adbe] transition hover:bg-white/[0.06] hover:text-white">
             <Icon name="logout" className="size-4" />
             Çıkış Yap
           </button>
@@ -657,7 +760,7 @@ function Sidebar() {
 
 function Topbar() {
   return (
-    <header className="flex h-[70px] items-center justify-between border-b border-white/[0.08] bg-[#080d18]/75 px-6 backdrop-blur-xl">
+    <header className="flex h-[70px] items-center justify-between border-b border-white/[0.08] bg-[#080d18]/75 px-4 backdrop-blur-xl sm:px-6">
       <nav className="hidden items-center gap-7 lg:flex">
         {[
           ["Dashboard", "/dashboard"],
@@ -669,7 +772,7 @@ function Topbar() {
           <Link
             key={item}
             href={href}
-            className={`text-[13px] font-bold ${
+            className={`cursor-pointer text-[13px] font-bold transition hover:text-white ${
               item === "Tarama" ? "text-white" : "text-[#969faf]"
             }`}
           >
@@ -682,16 +785,23 @@ function Topbar() {
         <div className="hidden items-center border-r border-white/[0.09] pr-4 text-right md:flex">
           <div>
             <p className="text-[13px] font-bold text-[#d8dce8]">Acme Dijital</p>
-            <p className="text-[12px] font-medium text-[#858fa4]">Pro Workspace</p>
+            <p className="text-[12px] font-medium text-[#858fa4]">
+              Pro Workspace
+            </p>
           </div>
         </div>
 
-        <Icon name="bell" className="size-5 text-[#aab2c4]" />
-        <Icon name="settings" className="size-5 text-[#aab2c4]" />
+        <button type="button" className="cursor-pointer text-[#aab2c4] transition hover:text-white">
+          <Icon name="bell" className="size-5" />
+        </button>
+
+        <button type="button" className="cursor-pointer text-[#aab2c4] transition hover:text-white">
+          <Icon name="settings" className="size-5" />
+        </button>
 
         <Link
           href="/history"
-          className="hidden h-9 items-center gap-2 rounded-md border border-white/[0.1] bg-white/[0.03] px-4 text-[13px] font-bold text-[#c0c7d5] xl:inline-flex"
+          className="hidden h-9 cursor-pointer items-center gap-2 rounded-md border border-white/[0.1] bg-white/[0.03] px-4 text-[13px] font-bold text-[#c0c7d5] transition hover:bg-white/[0.06] xl:inline-flex"
         >
           <Icon name="history" className="size-4" />
           Geçmiş Taramalar
@@ -699,8 +809,12 @@ function Topbar() {
 
         <div className="hidden items-center gap-3 border-l border-white/[0.09] pl-4 md:flex">
           <div>
-            <p className="text-right text-[13px] font-bold text-[#d8dce8]">A. Selin</p>
-            <p className="text-right text-[12px] font-medium text-[#858fa4]">Admin</p>
+            <p className="text-right text-[13px] font-bold text-[#d8dce8]">
+              A. Selin
+            </p>
+            <p className="text-right text-[12px] font-medium text-[#858fa4]">
+              Admin
+            </p>
           </div>
           <div className="grid size-9 place-items-center rounded-full bg-[#2f6df6] text-[12px] font-bold text-white">
             AS
@@ -735,7 +849,7 @@ function SelectBox({
         <select
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          className="h-11 w-full appearance-none rounded-md border border-white/[0.13] bg-[#080d18] px-4 pr-10 text-[14px] font-medium text-[#c7cdda] outline-none transition hover:border-white/25 focus:border-[#7f8fca]"
+          className="h-11 w-full cursor-pointer appearance-none rounded-md border border-white/[0.13] bg-[#080d18] px-4 pr-10 text-[14px] font-medium text-[#c7cdda] outline-none transition hover:border-white/25 focus:border-[#7f8fca]"
         >
           {options.map((option) => (
             <option
@@ -773,7 +887,7 @@ function DeviceCard({
     <button
       type="button"
       onClick={onClick}
-      className={`flex h-[112px] flex-col items-center justify-center rounded-lg border text-center transition ${
+      className={`flex h-[112px] cursor-pointer flex-col items-center justify-center rounded-lg border text-center transition ${
         active
           ? "border-[#aebcff] bg-white/[0.07]"
           : "border-white/[0.11] bg-[#080d18]/80 hover:border-white/25"
@@ -814,7 +928,7 @@ function ModuleCard({
           type="button"
           onClick={onToggle}
           aria-pressed={enabled}
-          className={`relative h-4 w-8 rounded-full transition ${
+          className={`relative h-4 w-8 cursor-pointer rounded-full transition ${
             enabled ? "bg-[#aebcff]" : "bg-white/[0.16]"
           }`}
         >
@@ -836,9 +950,11 @@ function ModuleCard({
 
 function RightPanel() {
   return (
-    <aside className="space-y-6">
+    <aside className="space-y-6 xl:sticky xl:top-20 xl:self-start">
       <InfoCard title="Sistem Durumu" dot>
-        <p className="text-[12px] font-medium text-[#9aa4b8]">Tüm sistemler operasyonel</p>
+        <p className="text-[12px] font-medium text-[#9aa4b8]">
+          Tüm sistemler operasyonel
+        </p>
         <div className="mt-5 space-y-3 text-[12px] font-bold">
           {[
             ["Tarama Motoru", "12ms"],
@@ -862,7 +978,9 @@ function RightPanel() {
             3
           </div>
           <div>
-            <p className="text-[13px] font-bold text-[#cdd3df]">Aktif tarama kuyruğu normal</p>
+            <p className="text-[13px] font-bold text-[#cdd3df]">
+              Aktif tarama kuyruğu normal
+            </p>
             <p className="mt-1 text-[12px] font-medium text-[#8c96a9]">
               Sıradaki: 3 • Bekleme: 12 dk
             </p>
@@ -871,12 +989,18 @@ function RightPanel() {
       </InfoCard>
 
       <InfoCard title="Son Senkronizasyon" icon="sync">
-        <p className="mt-4 text-[14px] font-bold text-[#cfd5e2]">10 May 2025, 14:32</p>
-        <p className="mt-2 text-[12px] font-extrabold text-[#25d18c]">Başarılı</p>
+        <p className="mt-4 text-[14px] font-bold text-[#cfd5e2]">
+          10 May 2025, 14:32
+        </p>
+        <p className="mt-2 text-[12px] font-extrabold text-[#25d18c]">
+          Başarılı
+        </p>
       </InfoCard>
 
       <InfoCard title="Tahmini Tarama Süresi" icon="timer">
-        <p className="mt-5 text-[24px] font-extrabold tracking-[-0.04em]">8 - 12 dk</p>
+        <p className="mt-5 text-[24px] font-extrabold tracking-[-0.04em]">
+          8 - 12 dk
+        </p>
       </InfoCard>
 
       <InfoCard title="Tarama İpuçları" icon="bulb">
@@ -933,35 +1057,63 @@ function StatusBadge({ type, label }: { type: string; label: string }) {
 
 function Icon({ name, className = "" }: { name: string; className?: string }) {
   const paths: Record<string, ReactNode> = {
-    brand: <path d="M12 3 5 6v6c0 4.5 2.9 7.7 7 9 4.1-1.3 7-4.5 7-9V6l-7-3ZM9 10l3 3 4-5" />,
+    brand: (
+      <path d="M12 3 5 6v6c0 4.5 2.9 7.7 7 9 4.1-1.3 7-4.5 7-9V6l-7-3ZM9 10l3 3 4-5" />
+    ),
     grid: <path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z" />,
-    scan: <path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M8 12h8M12 8v8" />,
+    scan: (
+      <path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M8 12h8M12 8v8" />
+    ),
     history: <path d="M4 12a8 8 0 1 0 2.3-5.7L4 8.6M4 4v4.6h4.6M12 8v5l3 2" />,
     chart: <path d="M5 19V9M12 19V5M19 19v-7" />,
-    team: <path d="M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM16 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM3 20a5 5 0 0 1 10 0M11 20a5 5 0 0 1 10 0" />,
-    settings: <path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8ZM4 12h2M18 12h2M12 4v2M12 18v2M6.3 6.3l1.4 1.4M16.3 16.3l1.4 1.4M17.7 6.3l-1.4 1.4M7.7 16.3l-1.4 1.4" />,
-    help: <path d="M12 18h.01M9.5 9a2.5 2.5 0 1 1 4.2 1.8c-.9.8-1.7 1.4-1.7 3.2M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z" />,
+    team: (
+      <path d="M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM16 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM3 20a5 5 0 0 1 10 0M11 20a5 5 0 0 1 10 0" />
+    ),
+    settings: (
+      <path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8ZM4 12h2M18 12h2M12 4v2M12 18v2M6.3 6.3l1.4 1.4M16.3 16.3l1.4 1.4M17.7 6.3l-1.4 1.4M7.7 16.3l-1.4 1.4" />
+    ),
+    help: (
+      <path d="M12 18h.01M9.5 9a2.5 2.5 0 1 1 4.2 1.8c-.9.8-1.7 1.4-1.7 3.2M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z" />
+    ),
     logout: <path d="M10 17l5-5-5-5M15 12H3M21 4v16" />,
     bell: <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM10 21h4" />,
     speed: <path d="M4 14a8 8 0 1 1 16 0M12 14l4-4M9 18h6" />,
     search: <path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14ZM20 20l-4-4" />,
-    shield: <path d="M12 3 5 6v6c0 4.5 2.9 7.7 7 9 4.1-1.3 7-4.5 7-9V6l-7-3Z" />,
+    shield: (
+      <path d="M12 3 5 6v6c0 4.5 2.9 7.7 7 9 4.1-1.3 7-4.5 7-9V6l-7-3Z" />
+    ),
     device: <path d="M4 5h16v10H4zM9 20h6M12 15v5" />,
     desktop: <path d="M4 5h16v10H4zM9 20h6M12 15v5" />,
     tablet: <path d="M7 3h10v18H7zM12 18h.01" />,
     mobile: <path d="M9 2h6v20H9zM12 18h.01" />,
-    accessibility: <path d="M12 5a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM4 8h16M12 8v13M8 21l4-8 4 8" />,
-    flow: <path d="M7 7h.01M17 7h.01M7 17h.01M17 17h.01M7 7h10M7 7v10M17 7v10M7 17h10" />,
-    eye: <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12ZM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />,
+    accessibility: (
+      <path d="M12 5a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM4 8h16M12 8v13M8 21l4-8 4 8" />
+    ),
+    flow: (
+      <path d="M7 7h.01M17 7h.01M7 17h.01M17 17h.01M7 7h10M7 7v10M17 7v10M7 17h10" />
+    ),
+    eye: (
+      <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12ZM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
+    ),
     form: <path d="M4 4h16v16H4zM8 8h8M8 12h8M8 16h4" />,
     module: <path d="M12 3 4 7l8 4 8-4-8-4ZM4 12l8 4 8-4M4 17l8 4 8-4" />,
-    info: <path d="M12 16v-4M12 8h.01M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z" />,
-    target: <path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20ZM12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12ZM12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" />,
+    info: (
+      <path d="M12 16v-4M12 8h.01M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z" />
+    ),
+    target: (
+      <path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20ZM12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12ZM12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" />
+    ),
     queue: <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />,
-    sync: <path d="M4 4v6h6M20 20v-6h-6M5 15a7 7 0 0 0 12 3M19 9A7 7 0 0 0 7 6" />,
+    sync: (
+      <path d="M4 4v6h6M20 20v-6h-6M5 15a7 7 0 0 0 12 3M19 9A7 7 0 0 0 7 6" />
+    ),
     timer: <path d="M12 8v5l3 2M9 2h6M12 22a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z" />,
-    bulb: <path d="M9 18h6M10 22h4M8 14a6 6 0 1 1 8 0c-1 1-1 2-1 3H9c0-1 0-2-1-3Z" />,
-    refresh: <path d="M4 12a8 8 0 0 1 13.6-5.6L20 9M20 4v5h-5M20 12a8 8 0 0 1-13.6 5.6L4 15M4 20v-5h5" />,
+    bulb: (
+      <path d="M9 18h6M10 22h4M8 14a6 6 0 1 1 8 0c-1 1-1 2-1 3H9c0-1 0-2-1-3Z" />
+    ),
+    refresh: (
+      <path d="M4 12a8 8 0 0 1 13.6-5.6L20 9M20 4v5h-5M20 12a8 8 0 0 1-13.6 5.6L4 15M4 20v-5h5" />
+    ),
     trash: <path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3" />,
   };
 

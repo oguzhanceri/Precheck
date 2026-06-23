@@ -341,7 +341,7 @@ export default function HistoryPage() {
 
   return (
     <main className="min-h-screen overflow-hidden bg-[#070b15] text-[#e7e9f4]">
-      <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.035)_1px,transparent_1px)] bg-[size:32px_32px]" />
+      <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.035)_1px,transparent_1px)] bg-size-[32px_32px]" />
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_38%_0%,rgba(80,96,130,0.22),transparent_34%),linear-gradient(180deg,rgba(8,13,24,0.12),#070b15_86%)]" />
 
       <div className="relative z-10 flex min-h-screen">
@@ -367,10 +367,10 @@ export default function HistoryPage() {
             <div className="min-w-0">
               <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
                 <div>
-                  <h1 className="text-[30px] font-extrabold tracking-[-0.05em] text-[#e9ecf6]">
+                  <h1 className="text-[30px] font-extrabold tracking-tighter text-[#e9ecf6]">
                     Analiz Geçmişi
                   </h1>
-                  <p className="mt-3 max-w-[720px] text-[15px] font-medium leading-6 text-[#c3cad8]">
+                  <p className="mt-3 max-w-180 text-[15px] font-medium leading-6 text-[#c3cad8]">
                     Geçmiş taramalarınızı inceleyin, filtreleyin ve raporlarınıza hızlıca erişin.
                   </p>
                 </div>
@@ -379,7 +379,7 @@ export default function HistoryPage() {
                   <button
                     type="button"
                     onClick={handleCsvExport}
-                    className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-md border border-white/[0.13] bg-[#080d18]/80 px-5 text-[14px] font-extrabold text-[#d7dcea] transition hover:border-white/25 hover:bg-white/[0.06]"
+                    className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-md border border-white/13 bg-[#080d18]/80 px-5 text-[14px] font-extrabold text-[#d7dcea] transition hover:border-white/25 hover:bg-white/6"
                   >
                     <Icon name="download" className="size-4" />
                     CSV Dışa Aktar
@@ -405,8 +405,8 @@ export default function HistoryPage() {
                 ))}
               </div>
 
-              <section className="mt-8 rounded-xl border border-white/[0.09] bg-[#0d1423]/88 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-                <div className="flex h-11 items-center gap-3 rounded-lg border border-white/[0.1] bg-[#080d18] px-4">
+              <section className="mt-8 rounded-xl border border-white/9 bg-[#0d1423]/88 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+                <div className="flex h-11 items-center gap-3 rounded-lg border border-white/10 bg-[#080d18] px-4">
                   <Icon name="search" className="size-5 text-[#8792a8]" />
                   <input
                     value={searchTerm}
@@ -438,7 +438,7 @@ export default function HistoryPage() {
                     </FilterButton>
 
                     {isStatusOpen && (
-                      <Dropdown className="left-0 top-12 w-[180px]">
+                      <Dropdown className="left-0 top-12 w-45">
                         {statusFilters.map((item) => (
                           <button
                             key={item.value}
@@ -467,7 +467,7 @@ export default function HistoryPage() {
                     </FilterButton>
 
                     {isScoreOpen && (
-                      <Dropdown className="left-0 top-12 w-[170px]">
+                      <Dropdown className="left-0 top-12 w-42.5">
                         {scoreFilters.map((item) => (
                           <button
                             key={item.value}
@@ -496,7 +496,7 @@ export default function HistoryPage() {
                     </FilterButton>
 
                     {isDateOpen && (
-                      <Dropdown className="left-0 top-12 w-[170px]">
+                      <Dropdown className="left-0 top-12 w-42.5">
                         {dateFilters.map((item) => (
                           <button
                             key={item}
@@ -525,7 +525,7 @@ export default function HistoryPage() {
                 </div>
               </section>
 
-              <nav className="mt-8 flex flex-wrap gap-8 border-b border-white/[0.08] text-[14px] font-bold text-[#aeb6c8]">
+              <nav className="mt-8 flex flex-wrap gap-8 border-b border-white/8 text-[14px] font-bold text-[#aeb6c8]">
                 {[
                   ["Tümü", counts.all, "all"],
                   ["Tamamlandı", counts.success, "success"],
@@ -548,7 +548,7 @@ export default function HistoryPage() {
                       }`}
                     >
                       {label}
-                      <span className="rounded-md bg-white/[0.12] px-2 py-0.5 text-[12px] text-[#b9c4dd]">
+                      <span className="rounded-md bg-white/12 px-2 py-0.5 text-[12px] text-[#b9c4dd]">
                         {count}
                       </span>
                       {isActive && (
@@ -559,9 +559,9 @@ export default function HistoryPage() {
                 })}
               </nav>
 
-              <section className="mt-5 overflow-hidden rounded-xl border border-white/[0.09] bg-[#0d1423]/88 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+              <section className="mt-5 overflow-hidden rounded-xl border border-white/9 bg-[#0d1423]/88 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[840px] border-collapse">
+                  <table className="w-full min-w-210 border-collapse">
                     <thead>
                       <tr className="text-left text-[12px] font-extrabold uppercase tracking-[0.08em] text-[#9aa3b5]">
                         <th className="px-5 py-5">Site</th>
@@ -576,7 +576,7 @@ export default function HistoryPage() {
                       {paginatedRows.map((row) => (
                         <tr
                           key={row.id}
-                          className="border-t border-white/[0.055] transition hover:bg-white/[0.045]"
+                          className="border-t border-white/5.5 transition hover:bg-white/4.5"
                         >
                           <td className="px-5 py-5">
                             <button
@@ -666,7 +666,7 @@ export default function HistoryPage() {
                             </div>
 
                             {openRowMenu === row.id && (
-                              <Dropdown className="right-5 top-12 w-[170px]">
+                              <Dropdown className="right-5 top-12 w-42.5">
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -714,7 +714,7 @@ export default function HistoryPage() {
                   </table>
                 </div>
 
-                <div className="flex flex-col gap-4 border-t border-white/[0.06] px-5 py-4 md:flex-row md:items-center md:justify-between">
+                <div className="flex flex-col gap-4 border-t border-white/6 px-5 py-4 md:flex-row md:items-center md:justify-between">
                   <p className="text-[13px] font-bold text-[#aeb6c8]">
                     {filteredRows.length
                       ? `${startIndex + 1}-${Math.min(startIndex + itemsPerPage, filteredRows.length)} / ${filteredRows.length} tarama gösteriliyor`
@@ -726,7 +726,7 @@ export default function HistoryPage() {
                       type="button"
                       onClick={() => setCurrentPage((current) => Math.max(1, current - 1))}
                       disabled={currentSafePage === 1}
-                      className="grid size-9 cursor-pointer place-items-center rounded-md border border-white/[0.08] bg-[#080d18] text-[13px] font-extrabold text-[#9da7ba] disabled:cursor-not-allowed disabled:opacity-40"
+                      className="grid size-9 cursor-pointer place-items-center rounded-md border border-white/8 bg-[#080d18] text-[13px] font-extrabold text-[#9da7ba] disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       ‹
                     </button>
@@ -742,7 +742,7 @@ export default function HistoryPage() {
                           className={`grid size-9 cursor-pointer place-items-center rounded-md border text-[13px] font-extrabold transition ${
                             currentSafePage === page
                               ? "border-[#2f6df6] bg-[#2f6df6] text-white"
-                              : "border-white/[0.08] bg-[#080d18] text-[#9da7ba] hover:bg-white/[0.06]"
+                              : "border-white/8 bg-[#080d18] text-[#9da7ba] hover:bg-white/6"
                           }`}
                         >
                           {page}
@@ -754,7 +754,7 @@ export default function HistoryPage() {
                       type="button"
                       onClick={() => setCurrentPage((current) => Math.min(totalPages, current + 1))}
                       disabled={currentSafePage === totalPages}
-                      className="grid size-9 cursor-pointer place-items-center rounded-md border border-white/[0.08] bg-[#080d18] text-[13px] font-extrabold text-[#9da7ba] disabled:cursor-not-allowed disabled:opacity-40"
+                      className="grid size-9 cursor-pointer place-items-center rounded-md border border-white/8 bg-[#080d18] text-[13px] font-extrabold text-[#9da7ba] disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       ›
                     </button>
@@ -777,7 +777,7 @@ export default function HistoryPage() {
           <ModalHeader title="Gelişmiş Filtreler" onClose={() => setIsMoreOpen(false)} />
 
           <div className="mt-6 space-y-4">
-            <label className="flex cursor-pointer items-center justify-between rounded-lg border border-white/[0.08] bg-[#080d18]/70 p-4">
+            <label className="flex cursor-pointer items-center justify-between rounded-lg border border-white/8 bg-[#080d18]/70 p-4">
               <span>
                 <span className="block text-[14px] font-extrabold text-[#dce2ef]">
                   Sadece kritik bulgusu olanlar
@@ -808,7 +808,7 @@ export default function HistoryPage() {
                 setIsMoreOpen(false);
                 resetPage();
               }}
-              className="h-10 w-full cursor-pointer rounded-md border border-white/[0.12] text-[13px] font-extrabold text-[#d8deeb] transition hover:bg-white/[0.06]"
+              className="h-10 w-full cursor-pointer rounded-md border border-white/12 text-[13px] font-extrabold text-[#d8deeb] transition hover:bg-white/6"
             >
               Filtreleri Temizle
             </button>
@@ -819,7 +819,7 @@ export default function HistoryPage() {
       {selectedStat && (
         <Modal onClose={() => setSelectedStat(null)} maxWidth="max-w-[500px]">
           <ModalHeader title={selectedStat.title} onClose={() => setSelectedStat(null)} />
-          <div className="mt-6 rounded-xl border border-white/[0.08] bg-[#080d18]/70 p-5">
+          <div className="mt-6 rounded-xl border border-white/8 bg-[#080d18]/70 p-5">
             <p className="text-[42px] font-extrabold tracking-tighter">
               {selectedStat.value}
             </p>
@@ -848,7 +848,7 @@ export default function HistoryPage() {
             <button
               type="button"
               onClick={() => repeatScan(selectedRow)}
-              className="h-10 cursor-pointer rounded-md border border-white/[0.12] px-5 text-[13px] font-extrabold text-[#d8deeb] transition hover:bg-white/[0.06]"
+              className="h-10 cursor-pointer rounded-md border border-white/12 px-5 text-[13px] font-extrabold text-[#d8deeb] transition hover:bg-white/6"
             >
               Tekrar Tara
             </button>
@@ -874,7 +874,7 @@ export default function HistoryPage() {
             <button
               type="button"
               onClick={() => setDeleteRow(null)}
-              className="h-10 cursor-pointer rounded-md border border-white/[0.12] px-5 text-[13px] font-extrabold text-[#d8deeb] transition hover:bg-white/[0.06]"
+              className="h-10 cursor-pointer rounded-md border border-white/12 px-5 text-[13px] font-extrabold text-[#d8deeb] transition hover:bg-white/6"
             >
               Vazgeç
             </button>
@@ -892,7 +892,7 @@ export default function HistoryPage() {
       {selectedProblem && (
         <Modal onClose={() => setSelectedProblem(null)} maxWidth="max-w-[520px]">
           <ModalHeader title={selectedProblem.title} onClose={() => setSelectedProblem(null)} />
-          <div className="mt-6 rounded-xl border border-white/[0.08] bg-[#080d18]/70 p-5">
+          <div className="mt-6 rounded-xl border border-white/8 bg-[#080d18]/70 p-5">
             <p className="text-[13px] font-bold text-[#aab3c5]">{selectedProblem.desc}</p>
             <p className="mt-4 text-[14px] font-medium leading-6 text-[#dce2ef]">
               {selectedProblem.solution}
@@ -934,7 +934,7 @@ export default function HistoryPage() {
       )}
 
       {toast && (
-        <div className="fixed bottom-5 right-5 z-50 rounded-lg border border-white/[0.1] bg-[#0d1423] px-4 py-3 text-[13px] font-bold text-[#dce2ef] shadow-2xl">
+        <div className="fixed bottom-5 right-5 z-50 rounded-lg border border-white/10 bg-[#0d1423] px-4 py-3 text-[13px] font-bold text-[#dce2ef] shadow-2xl">
           {toast}
         </div>
       )}
@@ -950,13 +950,13 @@ function Sidebar({
   onUpgrade: () => void;
 }) {
   return (
-    <aside className="hidden w-[264px] shrink-0 border-r border-white/[0.08] bg-[#0c111d]/92 lg:flex lg:flex-col">
-      <div className="flex h-[66px] items-center gap-3 border-b border-white/[0.07] px-9">
+    <aside className="hidden w-66 shrink-0 border-r border-white/8 bg-[#0c111d]/92 lg:flex lg:flex-col">
+      <div className="flex h-16.5 items-center gap-3 border-b border-white/[0.07] px-9">
         <div className="grid size-9 place-items-center rounded-lg bg-[#2f6df6] text-[17px] font-extrabold text-white">
           P
         </div>
         <div>
-          <p className="text-[21px] font-extrabold tracking-[-0.05em] text-[#c6d1ff]">
+          <p className="text-[21px] font-extrabold tracking-tighter text-[#c6d1ff]">
             Precheck AI
           </p>
           <p className="mt-1 text-[11px] font-extrabold uppercase tracking-[0.16em] text-[#cbd2df]">
@@ -973,8 +973,8 @@ function Sidebar({
               href={item.href}
               className={`flex h-12 cursor-pointer items-center gap-4 rounded-md px-4 text-[16px] font-bold transition ${
                 item.active
-                  ? "border-r border-[#b8c7ff] bg-white/[0.08] text-[#c9d6ff]"
-                  : "text-[#d1d6e2] hover:bg-white/[0.06] hover:text-white"
+                  ? "border-r border-[#b8c7ff] bg-white/8 text-[#c9d6ff]"
+                  : "text-[#d1d6e2] hover:bg-white/6 hover:text-white"
               }`}
             >
               <Icon name={item.icon} className="size-5" />
@@ -984,7 +984,7 @@ function Sidebar({
         </div>
       </nav>
 
-      <div className="border-t border-white/[0.08] px-5 py-5">
+      <div className="border-t border-white/8 px-5 py-5">
         <button
           type="button"
           onClick={onUpgrade}
@@ -996,7 +996,7 @@ function Sidebar({
         <button
           type="button"
           onClick={onSupport}
-          className="mt-5 flex h-9 w-full cursor-pointer items-center gap-4 rounded-md px-4 text-[16px] font-medium text-[#d1d6e2] transition hover:bg-white/[0.06] hover:text-white"
+          className="mt-5 flex h-9 w-full cursor-pointer items-center gap-4 rounded-md px-4 text-[16px] font-medium text-[#d1d6e2] transition hover:bg-white/6 hover:text-white"
         >
           <Icon name="help" className="size-5" />
           Destek
@@ -1022,7 +1022,7 @@ function Topbar({
   onSettings: () => void;
 }) {
   return (
-    <header className="flex h-[66px] items-center justify-between border-b border-white/[0.08] bg-[#080d18]/75 px-6 backdrop-blur-xl">
+    <header className="flex h-16.5 items-center justify-between border-b border-white/8 bg-[#080d18]/75 px-6 backdrop-blur-xl">
       <nav className="hidden items-center gap-8 lg:flex">
         {navItems.map((item) => (
           <Link
@@ -1034,14 +1034,14 @@ function Topbar({
           >
             {item.label}
             {item.active && (
-              <span className="absolute -bottom-[23px] left-0 h-px w-full bg-[#b8c7ff]" />
+              <span className="absolute -bottom-5.75 left-0 h-px w-full bg-[#b8c7ff]" />
             )}
           </Link>
         ))}
       </nav>
 
       <div className="ml-auto flex items-center gap-5">
-        <div className="hidden h-10 w-[260px] items-center gap-3 rounded-md border border-white/[0.1] bg-[#080d18] px-3 xl:flex">
+        <div className="hidden h-10 w-65 items-center gap-3 rounded-md border border-white/10 bg-[#080d18] px-3 xl:flex">
           <Icon name="search" className="size-5 text-[#9aa4b7]" />
           <input
             value={searchTerm}
@@ -1049,15 +1049,15 @@ function Topbar({
             placeholder="Hızlı ara..."
             className="h-full min-w-0 flex-1 cursor-text bg-transparent text-[14px] font-medium text-white outline-none placeholder:text-[#6f788b]"
           />
-          <span className="rounded bg-white/[0.12] px-1.5 py-0.5 text-[11px] font-extrabold text-[#b0b8c9]">
+          <span className="rounded bg-white/12 px-1.5 py-0.5 text-[11px] font-extrabold text-[#b0b8c9]">
             ⌘
           </span>
-          <span className="rounded bg-white/[0.12] px-1.5 py-0.5 text-[11px] font-extrabold text-[#b0b8c9]">
+          <span className="rounded bg-white/12 px-1.5 py-0.5 text-[11px] font-extrabold text-[#b0b8c9]">
             K
           </span>
         </div>
 
-        <span className="h-7 w-px bg-white/[0.08]" />
+        <span className="h-7 w-px bg-white/8" />
 
         <button type="button" className="cursor-pointer text-[#aeb6c8] transition hover:text-white">
           <Icon name="bell" className="size-5" />
@@ -1085,7 +1085,7 @@ function Topbar({
           </button>
 
           {isWorkspaceOpen && (
-            <Dropdown className="right-0 top-12 w-[190px]">
+            <Dropdown className="right-0 top-12 w-47.5">
               {["Acme Dijital", "Yeni Workspace", "Workspace Ayarları"].map((item) => (
                 <button
                   key={item}
@@ -1123,7 +1123,7 @@ function RightPanel({
 
   return (
     <aside className="space-y-6 xl:sticky xl:top-20 xl:self-start">
-      <section className="rounded-xl border border-white/[0.09] bg-[#0d1423]/88 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+      <section className="rounded-xl border border-white/9 bg-[#0d1423]/88 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
         <h2 className="text-[22px] font-extrabold tracking-[-0.04em]">Bu Ayın Özeti</h2>
 
         <div className="mt-6 space-y-5">
@@ -1132,7 +1132,7 @@ function RightPanel({
           <SummaryLine icon="timer" label="Ort. Tarama Süresi" value="1m 45s" />
         </div>
 
-        <div className="mt-7 border-t border-white/[0.08] pt-5">
+        <div className="mt-7 border-t border-white/8 pt-5">
           <div className="h-1.5 overflow-hidden rounded-full bg-[linear-gradient(90deg,#25d18c_0_74%,#f5a623_74%_92%,#ff515f_92%_100%)]" />
           <div className="mt-3 flex items-center justify-between text-[11px] font-extrabold text-[#9ba5b8]">
             <span>Kota Kullanımı: %42</span>
@@ -1141,7 +1141,7 @@ function RightPanel({
         </div>
       </section>
 
-      <section className="rounded-xl border border-white/[0.09] bg-[#0d1423]/88 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+      <section className="rounded-xl border border-white/9 bg-[#0d1423]/88 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
         <h2 className="text-[22px] font-extrabold tracking-[-0.04em]">En Çok Tekrarlanan Sorunlar</h2>
 
         <div className="mt-6 space-y-5">
@@ -1150,7 +1150,7 @@ function RightPanel({
               key={problem.title}
               type="button"
               onClick={() => onProblemSelect(problem)}
-              className="flex w-full cursor-pointer gap-4 rounded-lg text-left transition hover:bg-white/[0.04]"
+              className="flex w-full cursor-pointer gap-4 rounded-lg text-left transition hover:bg-white/4"
             >
               <span
                 className={`grid size-6 shrink-0 place-items-center rounded-md ${
@@ -1206,10 +1206,10 @@ function StatCard({
     <button
       type="button"
       onClick={onClick}
-      className="relative cursor-pointer overflow-hidden rounded-xl border border-white/[0.09] bg-[#0d1423]/88 p-5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/[0.055]"
+      className="relative cursor-pointer overflow-hidden rounded-xl border border-white/9 bg-[#0d1423]/88 p-5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/5.5"
     >
       <div className="flex items-start justify-between">
-        <span className="grid size-10 place-items-center rounded-lg border border-white/[0.08] bg-[#080d18]">
+        <span className="grid size-10 place-items-center rounded-lg border border-white/8 bg-[#080d18]">
           <Icon name={icon} className={`size-5 ${toneMap[tone]}`} />
         </span>
         {tone !== "blue" && (
@@ -1226,7 +1226,7 @@ function StatCard({
       </div>
 
       <p className="mt-5 text-[15px] font-bold text-[#b7bfce]">{title}</p>
-      <p className="mt-2 text-[34px] font-extrabold tracking-[-0.05em]">{value}</p>
+      <p className="mt-2 text-[34px] font-extrabold tracking-tighter">{value}</p>
       <p className={`mt-2 text-[12px] font-extrabold ${toneMap[tone]}`}>{desc}</p>
     </button>
   );
@@ -1243,7 +1243,7 @@ function FilterButton({
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-md border border-white/[0.1] bg-[#080d18] px-4 text-[14px] font-extrabold text-[#c1c8d7] transition hover:border-white/20 hover:bg-white/[0.06]"
+      className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-md border border-white/10 bg-[#080d18] px-4 text-[14px] font-extrabold text-[#c1c8d7] transition hover:border-white/20 hover:bg-white/6"
     >
       {children}
       <span className="text-[#8c96a8]">⌄</span>
@@ -1324,7 +1324,7 @@ function Dropdown({
 }) {
   return (
     <div
-      className={`absolute z-40 rounded-lg border border-white/[0.09] bg-[#0d1423] p-2 shadow-2xl ${className}`}
+      className={`absolute z-40 rounded-lg border border-white/9 bg-[#0d1423] p-2 shadow-2xl ${className}`}
     >
       {children}
     </div>
@@ -1347,7 +1347,7 @@ function Modal({
     >
       <div
         onClick={(event) => event.stopPropagation()}
-        className={`w-full ${maxWidth} cursor-default rounded-2xl border border-white/[0.1] bg-[#0d1423] p-6 shadow-2xl`}
+        className={`w-full ${maxWidth} cursor-default rounded-2xl border border-white/10 bg-[#0d1423] p-6 shadow-2xl`}
       >
         {children}
       </div>
@@ -1357,7 +1357,7 @@ function Modal({
 
 function ModalHeader({ title, onClose }: { title: string; onClose: () => void }) {
   return (
-    <div className="flex items-start justify-between gap-5 border-b border-white/[0.08] pb-5">
+    <div className="flex items-start justify-between gap-5 border-b border-white/8 pb-5">
       <h2 className="text-[22px] font-extrabold">{title}</h2>
       <button
         type="button"
@@ -1372,11 +1372,11 @@ function ModalHeader({ title, onClose }: { title: string; onClose: () => void })
 
 function DetailBox({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-white/[0.08] bg-[#080d18]/70 p-4">
+    <div className="rounded-lg border border-white/8 bg-[#080d18]/70 p-4">
       <p className="text-[11px] font-extrabold uppercase tracking-[0.08em] text-[#7f899d]">
         {label}
       </p>
-      <p className="mt-2 break-words text-[14px] font-bold text-[#dce2ef]">
+      <p className="mt-2 wrap-break-word text-[14px] font-bold text-[#dce2ef]">
         {value}
       </p>
     </div>
