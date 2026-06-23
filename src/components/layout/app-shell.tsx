@@ -39,7 +39,7 @@ export function AppShell({
                   key={item.href}
                   className={cn(
                     "rounded-2xl px-4 py-3 text-sm font-medium text-white/60 transition hover:bg-white/10 hover:text-white",
-                    active && "bg-white text-slate-950 shadow-[0_18px_60px_rgba(255,255,255,0.14)] hover:bg-white hover:text-slate-950",
+                    active && "  text-slate-950 shadow-[0_18px_60px_rgba(255,255,255,0.14)] hover:text-slate-950",
                   )}
                 >
                   {item.label}
@@ -65,7 +65,7 @@ export function AppShell({
               </p>
               <h1 className="mt-2 text-3xl font-semibold tracking-[-0.06em] sm:text-4xl">{title}</h1>
             </div>
-            <ButtonLink href="/scanner" className="w-full sm:w-auto">
+            <ButtonLink href="/scanner" className="w-full sm:w-auto bg-slate-950!">
               Yeni Tarama Başlat
             </ButtonLink>
           </header>

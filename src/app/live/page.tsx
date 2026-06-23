@@ -123,12 +123,24 @@ const waitingModules = [
   { title: "Mobil Uyumluluk Testi", status: "SIRADA" },
 ];
 
+function getInitialScanUrl() {
+  if (typeof window === "undefined") return "https://orneksite.com";
+
+  return new URLSearchParams(window.location.search).get("url") ?? "https://orneksite.com";
+}
+
+function getInitialScanId() {
+  if (typeof window === "undefined") return "scan_20250511_104218";
+
+  return new URLSearchParams(window.location.search).get("jobId") ?? "scan_20250511_104218";
+}
+
 export default function LivePage() {
   const router = useRouter();
   const logListRef = useRef<HTMLDivElement | null>(null);
 
-  const [scanUrl, setScanUrl] = useState("https://orneksite.com");
-  const [scanId, setScanId] = useState("scan_20250511_104218");
+  const [scanUrl] = useState(getInitialScanUrl);
+  const [scanId] = useState(getInitialScanId);
   const [progress, setProgress] = useState(71);
   const [elapsedSeconds, setElapsedSeconds] = useState(133);
   const [scanStatus, setScanStatus] = useState<ScanStatus>("running");
@@ -175,15 +187,6 @@ export default function LivePage() {
         : "text-[#25d18c]";
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const urlParam = params.get("url");
-    const jobIdParam = params.get("jobId");
-
-    if (urlParam) setScanUrl(urlParam);
-    if (jobIdParam) setScanId(jobIdParam);
-  }, []);
-
-  useEffect(() => {
     if (scanStatus !== "running") return;
 
     const interval = window.setInterval(() => {
@@ -193,6 +196,22 @@ export default function LivePage() {
         if (current >= 100) return 100;
 
         const next = Math.min(100, current + 1);
+        const logIndex = Math.floor((next - 75) / 5);
+        const nextLogText = runtimeLogs[logIndex];
+
+        if (next > 72 && next % 5 === 0 && nextLogText) {
+          setLogs((currentLogs) => [
+            {
+              time: getCurrentTime(),
+              icon: next > 94 ? "chart" : "refresh",
+              text: nextLogText,
+              active: true,
+              success: next > 90,
+              warning: next === 85,
+            },
+            ...currentLogs.map((log) => ({ ...log, active: false })),
+          ]);
+        }
 
         if (next >= 100) {
           setScanStatus("completed");
@@ -214,29 +233,6 @@ export default function LivePage() {
 
     return () => window.clearInterval(interval);
   }, [scanStatus]);
-
-  useEffect(() => {
-    if (scanStatus !== "running") return;
-    if (progress <= 72) return;
-    if (progress % 5 !== 0) return;
-
-    const logIndex = Math.floor((progress - 75) / 5);
-    const nextLogText = runtimeLogs[logIndex];
-
-    if (!nextLogText) return;
-
-    setLogs((currentLogs) => [
-      {
-        time: getCurrentTime(),
-        icon: progress > 94 ? "chart" : "refresh",
-        text: nextLogText,
-        active: true,
-        success: progress > 90,
-        warning: progress === 85,
-      },
-      ...currentLogs.map((log) => ({ ...log, active: false })),
-    ]);
-  }, [progress, scanStatus]);
 
   useEffect(() => {
     if (!autoScroll) return;

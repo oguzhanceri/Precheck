@@ -650,7 +650,7 @@ function ReportMockup() {
 export default function Home() {
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#070b14] text-[#e6e8f2]">
-      <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(rgba(255,255,255,0.028)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.028)_1px,transparent_1px)] bg-size-[32px_32px]" />
+      <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(rgba(255,255,255,0.028)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.028)_1px,transparent_1px)] bg-[size:32px_32px]" />
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_50%_-10%,rgba(73,111,255,0.16),transparent_34rem),radial-gradient(circle_at_30%_45%,rgba(88,120,255,0.08),transparent_40rem)]" />
 
       <header className="relative z-20 border-b border-white/5.5 bg-[#070a12]/92 backdrop-blur-xl">
