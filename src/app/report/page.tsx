@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 type ScoreCardItem = {
   title: string;
@@ -49,6 +49,31 @@ type PageRow = {
 };
 
 type ActiveTab = "summary" | "findings" | "suggestions" | "vitals" | "pages";
+
+type ScanStatus = "queued" | "running" | "completed" | "cancelled" | "failed";
+
+type ScanReportPayload = {
+  scan?: Record<string, unknown>;
+  data?: Record<string, unknown>;
+} & Record<string, unknown>;
+
+type ReportScanData = {
+  id: string;
+  url: string;
+  dateText: string;
+  status: ScanStatus;
+  scopeText: string;
+  durationText: string;
+  engineText: string;
+  overallScore: number;
+  scoreCards: ScoreCardItem[];
+  findings: Finding[];
+  suggestions: Suggestion[];
+  vitals: Vital[];
+  pages: PageRow[];
+};
+
+type ScanInfoRow = [string, string];
 
 const sidebarItems = [
   { label: "Genel Bakış", href: "/dashboard", icon: "grid" },
@@ -237,17 +262,58 @@ const pages: PageRow[] = [
 function getInitialReportUrl() {
   if (typeof window === "undefined") return "https://ornek-site.com";
 
-  return new URLSearchParams(window.location.search).get("url") ?? "https://ornek-site.com";
+  return (
+    new URLSearchParams(window.location.search).get("url") ??
+    "https://ornek-site.com"
+  );
+}
+
+function getInitialScanId() {
+  if (typeof window === "undefined") return "";
+
+  const params = new URLSearchParams(window.location.search);
+
+  return (
+    params.get("scanId") ??
+    params.get("jobId") ??
+    params.get("id") ??
+    window.localStorage.getItem("precheck:lastScanId") ??
+    ""
+  );
 }
 
 export default function ReportPage() {
   const router = useRouter();
 
-  const [reportUrl] = useState(getInitialReportUrl);
+  const [scanId] = useState(getInitialScanId);
+  const [reportUrl, setReportUrl] = useState(getInitialReportUrl);
+  const [reportDate, setReportDate] = useState("10 Haz 2025 14:32");
+  const [reportStatus, setReportStatus] = useState<ScanStatus>("completed");
+  const [reportScope, setReportScope] = useState("Standart Tarama");
+  const [reportDuration, setReportDuration] = useState("08:47");
+  const [reportEngine, setReportEngine] = useState("Precheck Crawler v2");
+  const [overallScore, setOverallScore] = useState(92);
+  const [dynamicScoreCards, setDynamicScoreCards] = useState<
+    ScoreCardItem[] | null
+  >(null);
+  const [dynamicFindings, setDynamicFindings] = useState<Finding[] | null>(
+    null,
+  );
+  const [dynamicSuggestions, setDynamicSuggestions] = useState<
+    Suggestion[] | null
+  >(null);
+  const [dynamicVitals, setDynamicVitals] = useState<Vital[] | null>(null);
+  const [dynamicPages, setDynamicPages] = useState<PageRow[] | null>(null);
+  const [isReportLoading, setIsReportLoading] = useState(Boolean(scanId));
+  const [reportError, setReportError] = useState("");
+
   const [activeTab, setActiveTab] = useState<ActiveTab>("summary");
-  const [selectedScore, setSelectedScore] = useState<ScoreCardItem | null>(null);
+  const [selectedScore, setSelectedScore] = useState<ScoreCardItem | null>(
+    null,
+  );
   const [selectedFinding, setSelectedFinding] = useState<Finding | null>(null);
-  const [selectedSuggestion, setSelectedSuggestion] = useState<Suggestion | null>(null);
+  const [selectedSuggestion, setSelectedSuggestion] =
+    useState<Suggestion | null>(null);
   const [selectedPage, setSelectedPage] = useState<PageRow | null>(null);
   const [shareLink, setShareLink] = useState("");
   const [note, setNote] = useState("");
@@ -258,6 +324,91 @@ export default function ReportPage() {
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
 
+  const displayScoreCards = dynamicScoreCards ?? scoreCards;
+  const displayFindings = dynamicFindings ?? findings;
+  const displaySuggestions = dynamicSuggestions ?? suggestions;
+  const displayVitals = dynamicVitals ?? vitals;
+  const displayPages = dynamicPages ?? pages;
+
+  const scanInfoRows: ScanInfoRow[] = [
+    ["Toplam Sayfa", String(displayPages.length || 1)],
+    ["Süre", reportDuration],
+    ["Motor", reportEngine],
+    ["Kapsam", reportScope],
+  ];
+
+  useEffect(() => {
+    if (!scanId) {
+      setReportError(
+        "URL içinde scanId bulunamadı. Şimdilik demo rapor verisi gösteriliyor.",
+      );
+      setIsReportLoading(false);
+      return;
+    }
+
+    let isMounted = true;
+
+    const fetchReport = async () => {
+      setIsReportLoading(true);
+      setReportError("");
+
+      try {
+        const response = await fetch(
+          `/api/scans/${encodeURIComponent(scanId)}`,
+          {
+            cache: "no-store",
+          },
+        );
+
+        if (!response.ok) {
+          if (response.status === 404) {
+            throw new Error("Bu scanId için rapor kaydı bulunamadı.");
+          }
+
+          throw new Error("Rapor verisi alınırken bir hata oluştu.");
+        }
+
+        const payload = (await response.json()) as ScanReportPayload;
+        const normalizedReport = normalizeReportPayload(payload, scanId);
+
+        if (!isMounted) return;
+
+        setReportUrl(normalizedReport.url);
+        setReportDate(normalizedReport.dateText);
+        setReportStatus(normalizedReport.status);
+        setReportScope(normalizedReport.scopeText);
+        setReportDuration(normalizedReport.durationText);
+        setReportEngine(normalizedReport.engineText);
+        setOverallScore(normalizedReport.overallScore);
+        setDynamicScoreCards(normalizedReport.scoreCards);
+        setDynamicFindings(normalizedReport.findings);
+        setDynamicSuggestions(normalizedReport.suggestions);
+        setDynamicVitals(normalizedReport.vitals);
+        setDynamicPages(normalizedReport.pages);
+
+        window.localStorage.setItem("precheck:lastScanId", normalizedReport.id);
+      } catch (error) {
+        if (!isMounted) return;
+
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Rapor verisi alınırken bilinmeyen bir hata oluştu.";
+
+        setReportError(message);
+      } finally {
+        if (isMounted) {
+          setIsReportLoading(false);
+        }
+      }
+    };
+
+    void fetchReport();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [scanId]);
 
   const showToast = (message: string) => {
     setToast(message);
@@ -272,9 +423,24 @@ export default function ReportPage() {
   const handleCsvExport = () => {
     const rows = [
       ["Tip", "Başlık", "Açıklama", "Seviye"],
-      ...findings.map((item) => ["Bulgu", item.title, item.desc, item.level]),
-      ...vitals.map((item) => ["Core Web Vital", item.metric, item.value, item.status]),
-      ...pages.map((item) => ["Sayfa", item.path, `Skor: ${item.score}`, item.critical]),
+      ...displayFindings.map((item) => [
+        "Bulgu",
+        item.title,
+        item.desc,
+        item.level,
+      ]),
+      ...displayVitals.map((item) => [
+        "Core Web Vital",
+        item.metric,
+        item.value,
+        item.status,
+      ]),
+      ...displayPages.map((item) => [
+        "Sayfa",
+        item.path,
+        `Skor: ${item.score}`,
+        item.critical,
+      ]),
     ];
 
     const csvContent = rows
@@ -297,7 +463,10 @@ export default function ReportPage() {
   };
 
   const handleShareLink = async () => {
-    const link = `${window.location.origin}/report?url=${encodeURIComponent(reportUrl)}`;
+    const link = scanId
+      ? `${window.location.origin}/report?scanId=${encodeURIComponent(scanId)}`
+      : `${window.location.origin}/report?url=${encodeURIComponent(reportUrl)}`;
+
     setShareLink(link);
 
     try {
@@ -325,7 +494,7 @@ export default function ReportPage() {
 
   return (
     <main className="min-h-screen overflow-hidden bg-[#070b15] text-[#e7e9f4]">
-      <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.035)_1px,transparent_1px)] bg-[size:32px_32px]" />
+      <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.035)_1px,transparent_1px)] bg-size-[32px_32px]" />
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_36%_0%,rgba(64,102,255,0.13),transparent_34%),linear-gradient(180deg,rgba(8,13,24,0.1),#070b15_86%)]" />
 
       <div className="relative z-10 flex min-h-screen">
@@ -352,25 +521,47 @@ export default function ReportPage() {
 
                   <button
                     type="button"
-                    onClick={() => window.open(reportUrl, "_blank", "noopener,noreferrer")}
+                    onClick={() =>
+                      window.open(reportUrl, "_blank", "noopener,noreferrer")
+                    }
                     className="mt-4 flex max-w-full cursor-pointer items-center gap-2 text-left text-[14px] font-medium text-[#d7dce8] transition hover:text-white sm:text-[16px]"
                   >
                     <span className="truncate">{reportUrl}</span>
-                    <Icon name="external" className="size-4 shrink-0 text-[#aebcff]" />
+                    <Icon
+                      name="external"
+                      className="size-4 shrink-0 text-[#aebcff]"
+                    />
                   </button>
 
                   <div className="mt-5 flex flex-wrap items-center gap-3 text-[13px] font-bold text-[#c0c7d7]">
                     <span className="inline-flex items-center gap-2">
                       <Icon name="calendar" className="size-4 text-[#b6c3ff]" />
-                      10 Haz 2025 14:32
+                      {reportDate}
                     </span>
+
                     <span className="inline-flex items-center gap-1.5">
-                      <span className="size-2 rounded-full bg-[#25d18c]" />
-                      Tamamlandı
+                      <span
+                        className={`size-2 rounded-full ${
+                          reportStatus === "completed"
+                            ? "bg-[#25d18c]"
+                            : reportStatus === "failed" ||
+                                reportStatus === "cancelled"
+                              ? "bg-[#ff777d]"
+                              : "bg-[#f5a623]"
+                        }`}
+                      />
+                      {getScanStatusLabel(reportStatus)}
                     </span>
-                    <span className="rounded-md bg-white/[0.12] px-3 py-1 text-[12px] text-[#c8cfdd]">
-                      Standart Tarama
+
+                    <span className="rounded-md bg-white/12 px-3 py-1 text-[12px] text-[#c8cfdd]">
+                      {reportScope}
                     </span>
+
+                    {scanId && (
+                      <span className="rounded-md bg-white/8 px-3 py-1 text-[12px] text-[#9fa8bb]">
+                        ID: {scanId.slice(0, 8)}...
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -378,7 +569,7 @@ export default function ReportPage() {
                   <button
                     type="button"
                     onClick={handlePdfDownload}
-                    className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-md border border-white/[0.13] bg-[#080d18]/80 px-4 text-[13px] font-bold text-[#d7dcea] transition hover:border-white/25 hover:bg-white/[0.06]"
+                    className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-md border border-white/13 bg-[#080d18]/80 px-4 text-[13px] font-bold text-[#d7dcea] transition hover:border-white/25 hover:bg-white/6"
                   >
                     <Icon name="download" className="size-4" />
                     PDF İndir
@@ -387,7 +578,7 @@ export default function ReportPage() {
                   <button
                     type="button"
                     onClick={handleCsvExport}
-                    className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-md border border-white/[0.13] bg-[#080d18]/80 px-4 text-[13px] font-bold text-[#d7dcea] transition hover:border-white/25 hover:bg-white/[0.06]"
+                    className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-md border border-white/13 bg-[#080d18]/80 px-4 text-[13px] font-bold text-[#d7dcea] transition hover:border-white/25 hover:bg-white/6"
                   >
                     <Icon name="download" className="size-4" />
                     CSV Dışa Aktar
@@ -404,11 +595,23 @@ export default function ReportPage() {
                 </div>
               </div>
 
+              {(isReportLoading || reportError) && (
+                <div
+                  className={`mt-6 rounded-xl border p-4 text-[13px] font-bold leading-6 ${
+                    reportError
+                      ? "border-[#6d501d] bg-[#332613]/70 text-[#f5a623]"
+                      : "border-white/10 bg-[#080d18]/70 text-[#aebcff]"
+                  }`}
+                >
+                  {reportError || "Rapor verisi yükleniyor..."}
+                </div>
+              )}
+
               <section className="mt-8 grid gap-4 lg:grid-cols-[132px_1fr]">
-                <OverallScoreCard />
+                <OverallScoreCard score={overallScore} />
 
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                  {scoreCards.map((card) => (
+                  {displayScoreCards.map((card) => (
                     <ScoreCard
                       key={card.title}
                       {...card}
@@ -418,14 +621,16 @@ export default function ReportPage() {
                 </div>
               </section>
 
-              <nav className="mt-7 flex gap-6 overflow-x-auto border-b border-white/[0.08] text-[14px] font-bold text-[#b2bacb]">
+              <nav className="mt-7 flex gap-6 overflow-x-auto border-b border-white/8 text-[14px] font-bold text-[#b2bacb]">
                 {tabs.map((tab) => (
                   <button
                     key={tab.value}
                     type="button"
                     onClick={() => setActiveTab(tab.value)}
                     className={`relative shrink-0 cursor-pointer pb-3 transition hover:text-white ${
-                      activeTab === tab.value ? "text-[#e4e9f7]" : "text-[#a5adbe]"
+                      activeTab === tab.value
+                        ? "text-[#e4e9f7]"
+                        : "text-[#a5adbe]"
                     }`}
                   >
                     {tab.label}
@@ -436,28 +641,36 @@ export default function ReportPage() {
                 ))}
               </nav>
 
-              {(activeTab === "summary" || activeTab === "findings" || activeTab === "suggestions") && (
+              {(activeTab === "summary" ||
+                activeTab === "findings" ||
+                activeTab === "suggestions") && (
                 <div
                   className={`mt-6 grid gap-4 ${
                     activeTab === "summary" ? "lg:grid-cols-2" : "grid-cols-1"
                   }`}
                 >
                   {(activeTab === "summary" || activeTab === "findings") && (
-                    <FindingsSection onSelect={setSelectedFinding} />
+                    <FindingsSection
+                      items={displayFindings}
+                      onSelect={setSelectedFinding}
+                    />
                   )}
 
                   {(activeTab === "summary" || activeTab === "suggestions") && (
-                    <SuggestionsSection onSelect={setSelectedSuggestion} />
+                    <SuggestionsSection
+                      items={displaySuggestions}
+                      onSelect={setSelectedSuggestion}
+                    />
                   )}
                 </div>
               )}
 
               {(activeTab === "summary" || activeTab === "vitals") && (
-                <VitalsSection />
+                <VitalsSection items={displayVitals} />
               )}
 
               {(activeTab === "summary" || activeTab === "pages") && (
-                <PagesSection onSelect={setSelectedPage} />
+                <PagesSection items={displayPages} onSelect={setSelectedPage} />
               )}
             </div>
 
@@ -465,6 +678,7 @@ export default function ReportPage() {
               note={note}
               savedNote={savedNote}
               shareLink={shareLink}
+              scanInfoRows={scanInfoRows}
               onNoteChange={setNote}
               onSaveNote={handleSaveNote}
               onShare={handleShareLink}
@@ -478,8 +692,11 @@ export default function ReportPage() {
 
       {selectedScore && (
         <Modal onClose={() => setSelectedScore(null)} maxWidth="max-w-[520px]">
-          <ModalHeader title={selectedScore.title} onClose={() => setSelectedScore(null)} />
-          <div className="mt-6 rounded-xl border border-white/[0.08] bg-[#080d18]/70 p-5">
+          <ModalHeader
+            title={selectedScore.title}
+            onClose={() => setSelectedScore(null)}
+          />
+          <div className="mt-6 rounded-xl border border-white/8 bg-[#080d18]/70 p-5">
             <p className="text-[42px] font-extrabold tracking-tighter">
               {selectedScore.value}
             </p>
@@ -491,21 +708,43 @@ export default function ReportPage() {
       )}
 
       {selectedFinding && (
-        <Modal onClose={() => setSelectedFinding(null)} maxWidth="max-w-[560px]">
-          <ModalHeader title="Bulgu Detayı" onClose={() => setSelectedFinding(null)} />
+        <Modal
+          onClose={() => setSelectedFinding(null)}
+          maxWidth="max-w-[560px]"
+        >
+          <ModalHeader
+            title="Bulgu Detayı"
+            onClose={() => setSelectedFinding(null)}
+          />
           <div className="mt-6 space-y-4">
-            <InfoBox label={selectedFinding.level} title={selectedFinding.title} text={selectedFinding.desc} />
-            <InfoBox label="Çözüm Önerisi" title="Nasıl düzeltilir?" text={selectedFinding.solution} />
+            <InfoBox
+              label={selectedFinding.level}
+              title={selectedFinding.title}
+              text={selectedFinding.desc}
+            />
+            <InfoBox
+              label="Çözüm Önerisi"
+              title="Nasıl düzeltilir?"
+              text={selectedFinding.solution}
+            />
           </div>
         </Modal>
       )}
 
       {selectedSuggestion && (
-        <Modal onClose={() => setSelectedSuggestion(null)} maxWidth="max-w-[560px]">
-          <ModalHeader title="Çözüm Önerisi" onClose={() => setSelectedSuggestion(null)} />
-          <div className="mt-6 rounded-xl border border-white/[0.08] bg-[#080d18]/70 p-5">
+        <Modal
+          onClose={() => setSelectedSuggestion(null)}
+          maxWidth="max-w-[560px]"
+        >
+          <ModalHeader
+            title="Çözüm Önerisi"
+            onClose={() => setSelectedSuggestion(null)}
+          />
+          <div className="mt-6 rounded-xl border border-white/8 bg-[#080d18]/70 p-5">
             <div className="flex items-start justify-between gap-4">
-              <h3 className="text-[20px] font-extrabold">{selectedSuggestion.title}</h3>
+              <h3 className="text-[20px] font-extrabold">
+                {selectedSuggestion.title}
+              </h3>
               <span className="rounded-md border border-[#6d5623] bg-[#302919] px-3 py-1 text-[11px] font-extrabold text-[#f5a623]">
                 Etki: {selectedSuggestion.impact}
               </span>
@@ -524,29 +763,39 @@ export default function ReportPage() {
 
       {selectedPage && (
         <Modal onClose={() => setSelectedPage(null)} maxWidth="max-w-[560px]">
-          <ModalHeader title="Sayfa Detayı" onClose={() => setSelectedPage(null)} />
+          <ModalHeader
+            title="Sayfa Detayı"
+            onClose={() => setSelectedPage(null)}
+          />
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
             <DetailBox label="Sayfa Yolu" value={selectedPage.path} />
             <DetailBox label="Skor" value={selectedPage.score} />
             <DetailBox label="Kritik" value={selectedPage.critical} />
             <DetailBox label="Uyarı" value={selectedPage.warning} />
             <DetailBox label="Son Kontrol" value={selectedPage.check} />
-            <DetailBox label="Tam URL" value={`${reportUrl}${selectedPage.path}`} />
+            <DetailBox
+              label="Tam URL"
+              value={`${reportUrl}${selectedPage.path}`}
+            />
           </div>
         </Modal>
       )}
 
       {archiveOpen && (
         <Modal onClose={() => setArchiveOpen(false)} maxWidth="max-w-[460px]">
-          <ModalHeader title="Rapor arşivlensin mi?" onClose={() => setArchiveOpen(false)} />
+          <ModalHeader
+            title="Rapor arşivlensin mi?"
+            onClose={() => setArchiveOpen(false)}
+          />
           <p className="mt-5 text-[14px] font-medium leading-6 text-[#aab3c5]">
-            Bu rapor aktif raporlar listesinden kaldırılır ve analiz geçmişinde arşivlenmiş olarak görünür.
+            Bu rapor aktif raporlar listesinden kaldırılır ve analiz geçmişinde
+            arşivlenmiş olarak görünür.
           </p>
           <div className="mt-6 flex justify-end gap-3">
             <button
               type="button"
               onClick={() => setArchiveOpen(false)}
-              className="h-10 cursor-pointer rounded-md border border-white/[0.12] px-5 text-[13px] font-extrabold text-[#d8deeb] transition hover:bg-white/[0.06]"
+              className="h-10 cursor-pointer rounded-md border border-white/12 px-5 text-[13px] font-extrabold text-[#d8deeb] transition hover:bg-white/6"
             >
               Vazgeç
             </button>
@@ -565,7 +814,8 @@ export default function ReportPage() {
         <Modal onClose={() => setSupportOpen(false)} maxWidth="max-w-[460px]">
           <ModalHeader title="Destek" onClose={() => setSupportOpen(false)} />
           <p className="mt-5 text-[14px] font-medium leading-6 text-[#aab3c5]">
-            Destek talebi için ayarlar sayfasındaki takım ve destek alanını kullanabilirsin.
+            Destek talebi için ayarlar sayfasındaki takım ve destek alanını
+            kullanabilirsin.
           </p>
           <button
             type="button"
@@ -579,9 +829,13 @@ export default function ReportPage() {
 
       {upgradeOpen && (
         <Modal onClose={() => setUpgradeOpen(false)} maxWidth="max-w-[460px]">
-          <ModalHeader title="Paketi Yükselt" onClose={() => setUpgradeOpen(false)} />
+          <ModalHeader
+            title="Paketi Yükselt"
+            onClose={() => setUpgradeOpen(false)}
+          />
           <p className="mt-5 text-[14px] font-medium leading-6 text-[#aab3c5]">
-            Daha fazla tarama kredisi, ekip üyeleri ve gelişmiş raporlama için fiyatlandırma sayfasına gidebilirsin.
+            Daha fazla tarama kredisi, ekip üyeleri ve gelişmiş raporlama için
+            fiyatlandırma sayfasına gidebilirsin.
           </p>
           <button
             type="button"
@@ -594,7 +848,7 @@ export default function ReportPage() {
       )}
 
       {toast && (
-        <div className="fixed bottom-5 right-5 z-50 rounded-lg border border-white/[0.1] bg-[#0d1423] px-4 py-3 text-[13px] font-bold text-[#dce2ef] shadow-2xl">
+        <div className="fixed bottom-5 right-5 z-50 rounded-lg border border-white/10 bg-[#0d1423] px-4 py-3 text-[13px] font-bold text-[#dce2ef] shadow-2xl">
           {toast}
         </div>
       )}
@@ -602,12 +856,19 @@ export default function ReportPage() {
   );
 }
 
-function OverallScoreCard() {
+function OverallScoreCard({ score }: { score: number }) {
   return (
-    <div className="rounded-xl border border-white/[0.09] bg-[#0d1423]/88 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-      <div className="mx-auto grid size-[104px] place-items-center rounded-full bg-[conic-gradient(#21c995_0_92%,#202a3c_92%_100%)]">
-        <div className="grid size-[80px] place-items-center rounded-full bg-[#0d1423]">
-          <span className="text-[31px] font-extrabold tracking-[-0.05em]">92</span>
+    <div className="rounded-xl border border-white/9 bg-[#0d1423]/88 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+      <div
+        className="mx-auto grid size-26 place-items-center rounded-full"
+        style={{
+          background: `conic-gradient(#21c995 0 ${score}%, #202a3c ${score}% 100%)`,
+        }}
+      >
+        <div className="grid size-20 place-items-center rounded-full bg-[#0d1423]">
+          <span className="text-[31px] font-extrabold tracking-tighter">
+            {score}
+          </span>
         </div>
       </div>
 
@@ -640,7 +901,7 @@ function ScoreCard({
     <button
       type="button"
       onClick={onClick}
-      className="rounded-lg border border-white/[0.09] bg-[#0d1423]/88 p-4 text-left transition hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/[0.055]"
+      className="rounded-lg border border-white/9 bg-[#0d1423]/88 p-4 text-left transition hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/5.5"
     >
       <div className="flex items-center justify-between">
         <h3 className="flex items-center gap-2 text-[13px] font-extrabold text-[#b7bfce]">
@@ -651,7 +912,9 @@ function ScoreCard({
       </div>
 
       <div className="mt-8 flex items-end justify-between">
-        <span className="text-[25px] font-extrabold tracking-[-0.04em]">{value}</span>
+        <span className="text-[25px] font-extrabold tracking-[-0.04em]">
+          {value}
+        </span>
         <span className="h-8 w-14 bg-[linear-gradient(180deg,rgba(37,209,140,0.04),rgba(37,209,140,0.23))]">
           <span className="mt-7 block h-0.5 w-full bg-[#25d18c]" />
         </span>
@@ -660,19 +923,31 @@ function ScoreCard({
   );
 }
 
-function FindingsSection({ onSelect }: { onSelect: (item: Finding) => void }) {
+function FindingsSection({
+  items,
+  onSelect,
+}: {
+  items: Finding[];
+  onSelect: (item: Finding) => void;
+}) {
   return (
-    <section className="rounded-xl border border-white/[0.09] bg-[#0d1423]/88 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+    <section className="rounded-xl border border-white/9 bg-[#0d1423]/88 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
       <div className="flex items-center justify-between gap-4">
-        <h2 className="text-[22px] font-extrabold tracking-[-0.04em]">Kritik Bulgular</h2>
+        <h2 className="text-[22px] font-extrabold tracking-[-0.04em]">
+          Kritik Bulgular
+        </h2>
         <span className="shrink-0 rounded-md border border-[#783438] bg-[#32171d] px-2 py-1 text-[11px] font-extrabold text-[#ff777d]">
-          5 Önemli Bulgu
+          {items.length} Önemli Bulgu
         </span>
       </div>
 
       <div className="mt-5 space-y-4">
-        {findings.map((item) => (
-          <FindingItem key={item.title} {...item} onClick={() => onSelect(item)} />
+        {items.map((item) => (
+          <FindingItem
+            key={`${item.title}-${item.desc}`}
+            {...item}
+            onClick={() => onSelect(item)}
+          />
         ))}
       </div>
     </section>
@@ -696,14 +971,25 @@ function FindingItem({
     <button
       type="button"
       onClick={onClick}
-      className="grid w-full cursor-pointer grid-cols-[24px_1fr_auto_14px] items-center gap-3 rounded-lg p-2 text-left transition hover:bg-white/[0.04]"
+      className="grid w-full cursor-pointer grid-cols-[24px_1fr_auto_14px] items-center gap-3 rounded-lg p-2 text-left transition hover:bg-white/4"
     >
-      <Icon name={icon} className={`size-5 ${tone === "red" ? "text-[#ff9a9f]" : "text-[#f5a623]"}`} />
+      <Icon
+        name={icon}
+        className={`size-5 ${
+          tone === "red" ? "text-[#ff9a9f]" : "text-[#f5a623]"
+        }`}
+      />
       <div className="min-w-0">
-        <h3 className="truncate text-[14px] font-extrabold leading-5 text-[#dbe1ee]">{title}</h3>
-        <p className="mt-1 truncate text-[11px] font-bold text-[#9ba5b8]">{desc}</p>
+        <h3 className="truncate text-[14px] font-extrabold leading-5 text-[#dbe1ee]">
+          {title}
+        </h3>
+        <p className="mt-1 truncate text-[11px] font-bold text-[#9ba5b8]">
+          {desc}
+        </p>
       </div>
-      <span className={`rounded px-2 py-1 text-[10px] font-extrabold ${toneClass}`}>
+      <span
+        className={`rounded px-2 py-1 text-[10px] font-extrabold ${toneClass}`}
+      >
         {level}
       </span>
       <span className="text-[#aeb6c8]">›</span>
@@ -711,16 +997,26 @@ function FindingItem({
   );
 }
 
-function SuggestionsSection({ onSelect }: { onSelect: (item: Suggestion) => void }) {
+function SuggestionsSection({
+  items,
+  onSelect,
+}: {
+  items: Suggestion[];
+  onSelect: (item: Suggestion) => void;
+}) {
   return (
-    <section className="rounded-xl border border-white/[0.09] bg-[#0d1423]/88 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+    <section className="rounded-xl border border-white/9 bg-[#0d1423]/88 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
       <h2 className="flex items-center gap-2 text-[22px] font-extrabold tracking-[-0.04em]">
         ✨ Akıllı Çözüm Önerileri
       </h2>
 
       <div className="mt-5 space-y-4">
-        {suggestions.map((item) => (
-          <SuggestionCard key={item.title} {...item} onClick={() => onSelect(item)} />
+        {items.map((item) => (
+          <SuggestionCard
+            key={`${item.title}-${item.desc}`}
+            {...item}
+            onClick={() => onSelect(item)}
+          />
         ))}
       </div>
     </section>
@@ -738,10 +1034,12 @@ function SuggestionCard({
     <button
       type="button"
       onClick={onClick}
-      className="w-full cursor-pointer rounded-lg border border-white/[0.06] bg-white/[0.06] p-4 text-left transition hover:border-white/15 hover:bg-white/[0.085]"
+      className="w-full cursor-pointer rounded-lg border border-white/6 bg-white/6 p-4 text-left transition hover:border-white/15 hover:bg-white/8.5"
     >
       <div className="flex items-start justify-between gap-4">
-        <h3 className="text-[15px] font-extrabold leading-5 text-[#f1f4fb]">{title}</h3>
+        <h3 className="text-[15px] font-extrabold leading-5 text-[#f1f4fb]">
+          {title}
+        </h3>
         <span className="shrink-0 text-right text-[11px] font-extrabold text-[#f59d23]">
           ⚡ Etki:
           <br />
@@ -749,7 +1047,9 @@ function SuggestionCard({
         </span>
       </div>
 
-      <p className="mt-2 text-[12px] font-medium leading-5 text-[#c1c8d8]">{desc}</p>
+      <p className="mt-2 text-[12px] font-medium leading-5 text-[#c1c8d8]">
+        {desc}
+      </p>
 
       <ul className="mt-3 space-y-1 text-[11px] font-medium leading-4 text-[#d2d8e6]">
         {actions.map((action) => (
@@ -760,13 +1060,15 @@ function SuggestionCard({
   );
 }
 
-function VitalsSection() {
+function VitalsSection({ items }: { items: Vital[] }) {
   return (
-    <section className="mt-6 rounded-xl border border-white/[0.09] bg-[#0d1423]/88 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-      <h2 className="text-[22px] font-extrabold tracking-[-0.04em]">Core Web Vitals</h2>
+    <section className="mt-6 rounded-xl border border-white/9 bg-[#0d1423]/88 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+      <h2 className="text-[22px] font-extrabold tracking-[-0.04em]">
+        Core Web Vitals
+      </h2>
 
-      <div className="mt-4 overflow-x-auto border-t border-white/[0.08] pt-4">
-        <table className="w-full min-w-[680px] border-collapse">
+      <div className="mt-4 overflow-x-auto border-t border-white/8 pt-4">
+        <table className="w-full min-w-170 border-collapse">
           <thead>
             <tr className="text-left text-[13px] font-extrabold text-[#9fa8bb]">
               <th className="py-3 pr-4">Metrik</th>
@@ -777,31 +1079,49 @@ function VitalsSection() {
             </tr>
           </thead>
           <tbody>
-            {vitals.map((item) => (
-              <tr key={item.metric} className="border-t border-white/[0.05]">
-                <td className="max-w-[220px] py-3 pr-4 text-[13px] font-extrabold leading-5 text-[#cfd5e2]">
+            {items.map((item) => (
+              <tr key={item.metric} className="border-t border-white/5">
+                <td className="max-w-55 py-3 pr-4 text-[13px] font-extrabold leading-5 text-[#cfd5e2]">
                   {item.metric}
                 </td>
-                <td className={`py-3 pr-4 text-[13px] font-extrabold ${item.tone === "orange" ? "text-[#f49b3a]" : "text-[#dce2ef]"}`}>
+                <td
+                  className={`py-3 pr-4 text-[13px] font-extrabold ${
+                    item.tone === "orange" ? "text-[#f49b3a]" : "text-[#dce2ef]"
+                  }`}
+                >
                   {item.value}
                 </td>
                 <td className="py-3 pr-4">
                   <div className="flex items-center gap-2">
-                    <span className="h-1.5 w-20 overflow-hidden rounded-full bg-white/[0.12]">
+                    <span className="h-1.5 w-20 overflow-hidden rounded-full bg-white/12">
                       <span
                         className={`block h-full rounded-full ${
-                          item.tone === "orange" ? "bg-[#f49b3a]" : "bg-[#25d18c]"
+                          item.tone === "orange"
+                            ? "bg-[#f49b3a]"
+                            : "bg-[#25d18c]"
                         }`}
                         style={{ width: item.width }}
                       />
                     </span>
-                    <span className={`text-[12px] font-bold ${item.tone === "orange" ? "text-[#f49b3a]" : "text-[#25d18c]"}`}>
+                    <span
+                      className={`text-[12px] font-bold ${
+                        item.tone === "orange"
+                          ? "text-[#f49b3a]"
+                          : "text-[#25d18c]"
+                      }`}
+                    >
                       {item.status}
                     </span>
                   </div>
                 </td>
-                <td className="py-3 pr-4 text-[13px] font-bold text-[#aeb6c8]">{item.avg}</td>
-                <td className={`py-3 pr-4 text-[13px] font-extrabold ${item.tone === "orange" ? "text-[#ff8f67]" : "text-[#25d18c]"}`}>
+                <td className="py-3 pr-4 text-[13px] font-bold text-[#aeb6c8]">
+                  {item.avg}
+                </td>
+                <td
+                  className={`py-3 pr-4 text-[13px] font-extrabold ${
+                    item.tone === "orange" ? "text-[#ff8f67]" : "text-[#25d18c]"
+                  }`}
+                >
                   {item.trend}
                 </td>
               </tr>
@@ -813,17 +1133,25 @@ function VitalsSection() {
   );
 }
 
-function PagesSection({ onSelect }: { onSelect: (item: PageRow) => void }) {
+function PagesSection({
+  items,
+  onSelect,
+}: {
+  items: PageRow[];
+  onSelect: (item: PageRow) => void;
+}) {
   return (
-    <section className="mt-6 overflow-hidden rounded-xl border border-white/[0.09] bg-[#0d1423]/88 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+    <section className="mt-6 overflow-hidden rounded-xl border border-white/9 bg-[#0d1423]/88 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
       <div className="px-4 py-4">
-        <h2 className="text-[22px] font-extrabold tracking-[-0.04em]">En Çok Etkilenen Sayfalar</h2>
+        <h2 className="text-[22px] font-extrabold tracking-[-0.04em]">
+          En Çok Etkilenen Sayfalar
+        </h2>
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[720px] border-collapse">
+        <table className="w-full min-w-180 border-collapse">
           <thead>
-            <tr className="border-y border-white/[0.08] text-left text-[13px] font-extrabold text-[#9fa8bb]">
+            <tr className="border-y border-white/8 text-left text-[13px] font-extrabold text-[#9fa8bb]">
               <th className="px-4 py-3">Sayfa Yolu</th>
               <th className="px-4 py-3">Skor</th>
               <th className="px-4 py-3">Kritik</th>
@@ -833,10 +1161,21 @@ function PagesSection({ onSelect }: { onSelect: (item: PageRow) => void }) {
             </tr>
           </thead>
           <tbody>
-            {pages.map((page) => (
-              <tr key={page.path} className="border-b border-white/[0.055] transition hover:bg-white/[0.03]">
-                <td className="px-4 py-4 text-[13px] font-extrabold text-[#d9dfec]">{page.path}</td>
-                <td className={`px-4 py-4 text-[13px] font-extrabold ${Number(page.score) < 80 ? "text-[#f59d23]" : "text-[#25d18c]"}`}>
+            {items.map((page) => (
+              <tr
+                key={page.path}
+                className="border-b border-white/5.5 transition hover:bg-white/3"
+              >
+                <td className="px-4 py-4 text-[13px] font-extrabold text-[#d9dfec]">
+                  {page.path}
+                </td>
+                <td
+                  className={`px-4 py-4 text-[13px] font-extrabold ${
+                    Number(page.score) < 80
+                      ? "text-[#f59d23]"
+                      : "text-[#25d18c]"
+                  }`}
+                >
                   {page.score}
                 </td>
                 <td className="px-4 py-4">
@@ -853,7 +1192,9 @@ function PagesSection({ onSelect }: { onSelect: (item: PageRow) => void }) {
                     {page.warning}
                   </span>
                 </td>
-                <td className="px-4 py-4 text-[13px] font-bold text-[#aeb6c8]">{page.check}</td>
+                <td className="px-4 py-4 text-[13px] font-bold text-[#aeb6c8]">
+                  {page.check}
+                </td>
                 <td className="px-4 py-4 text-right">
                   <button
                     type="button"
@@ -877,6 +1218,7 @@ function RightPanel({
   note,
   savedNote,
   shareLink,
+  scanInfoRows,
   onNoteChange,
   onSaveNote,
   onShare,
@@ -887,6 +1229,7 @@ function RightPanel({
   note: string;
   savedNote: string;
   shareLink: string;
+  scanInfoRows: ScanInfoRow[];
   onNoteChange: (value: string) => void;
   onSaveNote: () => void;
   onShare: () => void;
@@ -896,16 +1239,16 @@ function RightPanel({
 }) {
   return (
     <aside className="space-y-5 xl:sticky xl:top-20 xl:self-start">
-      <section className="rounded-xl border border-white/[0.09] bg-[#0d1423]/88 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-        <h2 className="text-[20px] font-extrabold tracking-[-0.04em]">Tarama Bilgileri</h2>
-        <div className="mt-4 border-t border-white/[0.08] pt-5">
-          {[
-            ["Toplam Sayfa", "128"],
-            ["Süre", "08:47"],
-            ["Motor", "Precheck Crawler v2"],
-            ["Kapsam", "Tüm Site"],
-          ].map(([label, value]) => (
-            <div key={label} className="flex items-center justify-between gap-5 py-3 text-[14px] font-bold">
+      <section className="rounded-xl border border-white/9 bg-[#0d1423]/88 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+        <h2 className="text-[20px] font-extrabold tracking-[-0.04em]">
+          Tarama Bilgileri
+        </h2>
+        <div className="mt-4 border-t border-white/8 pt-5">
+          {scanInfoRows.map(([label, value]) => (
+            <div
+              key={label}
+              className="flex items-center justify-between gap-5 py-3 text-[14px] font-bold"
+            >
               <span className="text-[#a5adbe]">{label}</span>
               <span className="text-right text-[#dbe1ee]">{value}</span>
             </div>
@@ -913,9 +1256,11 @@ function RightPanel({
         </div>
       </section>
 
-      <section className="rounded-xl border border-white/[0.09] bg-[#0d1423]/88 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-        <h2 className="text-[20px] font-extrabold tracking-[-0.04em]">Rapor İşlemleri</h2>
-        <div className="mt-4 border-t border-white/[0.08] pt-5">
+      <section className="rounded-xl border border-white/9 bg-[#0d1423]/88 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+        <h2 className="text-[20px] font-extrabold tracking-[-0.04em]">
+          Rapor İşlemleri
+        </h2>
+        <div className="mt-4 border-t border-white/8 pt-5">
           <button
             type="button"
             onClick={onShare}
@@ -930,7 +1275,7 @@ function RightPanel({
           </button>
 
           {shareLink && (
-            <p className="mt-3 break-all rounded-lg border border-white/[0.08] bg-[#080d18]/70 p-3 text-[11px] font-bold text-[#9fa8bb]">
+            <p className="mt-3 break-all rounded-lg border border-white/8 bg-[#080d18]/70 p-3 text-[11px] font-bold text-[#9fa8bb]">
               {shareLink}
             </p>
           )}
@@ -939,14 +1284,14 @@ function RightPanel({
             <button
               type="button"
               onClick={onDownload}
-              className="h-9 cursor-pointer rounded-md border border-white/[0.09] bg-[#080d18] text-[12px] font-extrabold text-[#c4cbda] transition hover:border-white/20 hover:bg-white/[0.06]"
+              className="h-9 cursor-pointer rounded-md border border-white/9 bg-[#080d18] text-[12px] font-extrabold text-[#c4cbda] transition hover:border-white/20 hover:bg-white/6"
             >
               ↓ İndir
             </button>
             <button
               type="button"
               onClick={onRefresh}
-              className="h-9 cursor-pointer rounded-md border border-white/[0.09] bg-[#080d18] text-[12px] font-extrabold text-[#c4cbda] transition hover:border-white/20 hover:bg-white/[0.06]"
+              className="h-9 cursor-pointer rounded-md border border-white/9 bg-[#080d18] text-[12px] font-extrabold text-[#c4cbda] transition hover:border-white/20 hover:bg-white/6"
             >
               ↻ Yenile
             </button>
@@ -962,13 +1307,15 @@ function RightPanel({
         </div>
       </section>
 
-      <section className="rounded-xl border border-white/[0.09] bg-[#0d1423]/88 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-        <h2 className="text-[20px] font-extrabold tracking-[-0.04em]">Notlar</h2>
+      <section className="rounded-xl border border-white/9 bg-[#0d1423]/88 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+        <h2 className="text-[20px] font-extrabold tracking-[-0.04em]">
+          Notlar
+        </h2>
         <textarea
           value={note}
           onChange={(event) => onNoteChange(event.target.value)}
           placeholder="Bu rapora özel not ekleyin..."
-          className="mt-4 h-32 w-full resize-none rounded-lg border border-white/[0.08] bg-[#080d18] p-4 text-[13px] font-medium text-white outline-none placeholder:text-[#697386] focus:border-[#8ea1e8]"
+          className="mt-4 h-32 w-full resize-none rounded-lg border border-white/8 bg-[#080d18] p-4 text-[13px] font-medium text-white outline-none placeholder:text-[#697386] focus:border-[#8ea1e8]"
         />
         <button
           type="button"
@@ -979,7 +1326,7 @@ function RightPanel({
         </button>
 
         {savedNote && (
-          <p className="mt-3 rounded-lg border border-white/[0.08] bg-[#080d18]/70 p-3 text-[12px] font-medium leading-5 text-[#aab3c5]">
+          <p className="mt-3 rounded-lg border border-white/8 bg-[#080d18]/70 p-3 text-[12px] font-medium leading-5 text-[#aab3c5]">
             Kaydedilen not: {savedNote}
           </p>
         )}
@@ -996,14 +1343,18 @@ function Sidebar({
   onUpgrade: () => void;
 }) {
   return (
-    <aside className="hidden w-[208px] shrink-0 border-r border-white/[0.08] bg-[#0c111d]/92 lg:flex lg:flex-col">
-      <div className="flex h-[58px] items-center gap-3 border-b border-white/[0.07] px-5">
+    <aside className="hidden w-52 shrink-0 border-r border-white/8 bg-[#0c111d]/92 lg:flex lg:flex-col">
+      <div className="flex h-14.5 items-center gap-3 border-b border-white/[0.07] px-5">
         <div className="grid size-7 place-items-center rounded-md text-[#aebcff]">
           <Icon name="brand" className="size-6" />
         </div>
         <div>
-          <p className="text-[16px] font-extrabold tracking-[-0.03em] text-[#aebcff]">Precheck AI</p>
-          <p className="text-[11px] font-medium text-[#9ca4b6]">Enterprise Analytics</p>
+          <p className="text-[16px] font-extrabold tracking-[-0.03em] text-[#aebcff]">
+            Precheck AI
+          </p>
+          <p className="text-[11px] font-medium text-[#9ca4b6]">
+            Enterprise Analytics
+          </p>
         </div>
       </div>
 
@@ -1015,8 +1366,8 @@ function Sidebar({
               href={item.href}
               className={`flex h-9 cursor-pointer items-center gap-3 rounded-md px-3 text-[13px] font-bold transition ${
                 item.active
-                  ? "border border-[#8ea1e8] bg-white/[0.08] text-[#dbe4ff]"
-                  : "text-[#c2c8d6] hover:bg-white/[0.06] hover:text-white"
+                  ? "border border-[#8ea1e8] bg-white/8 text-[#dbe4ff]"
+                  : "text-[#c2c8d6] hover:bg-white/6 hover:text-white"
               }`}
             >
               <Icon name={item.icon} className="size-4" />
@@ -1030,7 +1381,7 @@ function Sidebar({
         <button
           type="button"
           onClick={onSupport}
-          className="flex h-9 w-full cursor-pointer items-center gap-3 rounded-md px-3 text-[13px] font-bold text-[#c2c8d6] transition hover:bg-white/[0.06] hover:text-white"
+          className="flex h-9 w-full cursor-pointer items-center gap-3 rounded-md px-3 text-[13px] font-bold text-[#c2c8d6] transition hover:bg-white/6 hover:text-white"
         >
           <Icon name="help" className="size-4" />
           Destek
@@ -1059,7 +1410,7 @@ function Topbar({
   onSettings: () => void;
 }) {
   return (
-    <header className="flex h-[58px] items-center justify-between border-b border-white/[0.08] bg-[#080d18]/75 px-5 backdrop-blur-xl">
+    <header className="flex h-14.5 items-center justify-between border-b border-white/8 bg-[#080d18]/75 px-5 backdrop-blur-xl">
       <nav className="hidden items-center gap-7 lg:flex">
         {topbarItems.map((item) => (
           <Link
@@ -1075,7 +1426,10 @@ function Topbar({
       </nav>
 
       <div className="ml-auto flex items-center gap-4">
-        <button type="button" className="cursor-pointer text-[#aab2c4] transition hover:text-white">
+        <button
+          type="button"
+          className="cursor-pointer text-[#aab2c4] transition hover:text-white"
+        >
           <Icon name="bell" className="size-5" />
         </button>
 
@@ -1091,38 +1445,48 @@ function Topbar({
           <button
             type="button"
             onClick={onWorkspaceToggle}
-            className="flex cursor-pointer items-center gap-2 rounded-md border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 transition hover:bg-white/[0.07]"
+            className="flex cursor-pointer items-center gap-2 rounded-md border border-white/8 bg-white/4 px-3 py-1.5 transition hover:bg-white/[0.07]"
           >
             <span className="grid size-5 place-items-center rounded bg-[#273047] text-[10px] font-extrabold text-[#c9d2e6]">
               AD
             </span>
             <div className="text-left">
-              <p className="text-[11px] font-extrabold text-[#d8dce8]">Acme Dijital</p>
-              <p className="text-[10px] font-medium text-[#858fa4]">Pro Workspace</p>
+              <p className="text-[11px] font-extrabold text-[#d8dce8]">
+                Acme Dijital
+              </p>
+              <p className="text-[10px] font-medium text-[#858fa4]">
+                Pro Workspace
+              </p>
             </div>
             <span className="text-[#8b94a7]">⌄</span>
           </button>
 
           {workspaceOpen && (
-            <div className="absolute right-0 top-12 z-40 w-[190px] rounded-lg border border-white/[0.09] bg-[#0d1423] p-2 shadow-2xl">
-              {["Acme Dijital", "Yeni Workspace", "Workspace Ayarları"].map((item) => (
-                <button
-                  key={item}
-                  type="button"
-                  onClick={onWorkspaceClose}
-                  className="flex h-9 w-full cursor-pointer items-center rounded-md px-3 text-left text-[12px] font-bold text-[#b8c0d0] transition hover:bg-white/[0.07] hover:text-white"
-                >
-                  {item}
-                </button>
-              ))}
+            <div className="absolute right-0 top-12 z-40 w-47.5 rounded-lg border border-white/9 bg-[#0d1423] p-2 shadow-2xl">
+              {["Acme Dijital", "Yeni Workspace", "Workspace Ayarları"].map(
+                (item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={onWorkspaceClose}
+                    className="flex h-9 w-full cursor-pointer items-center rounded-md px-3 text-left text-[12px] font-bold text-[#b8c0d0] transition hover:bg-white/[0.07] hover:text-white"
+                  >
+                    {item}
+                  </button>
+                ),
+              )}
             </div>
           )}
         </div>
 
-        <div className="hidden items-center gap-3 border-l border-white/[0.09] pl-4 md:flex">
+        <div className="hidden items-center gap-3 border-l border-white/9 pl-4 md:flex">
           <div>
-            <p className="text-right text-[12px] font-bold text-[#d8dce8]">A. Selim</p>
-            <p className="text-right text-[10px] font-medium text-[#858fa4]">Admin</p>
+            <p className="text-right text-[12px] font-bold text-[#d8dce8]">
+              A. Selim
+            </p>
+            <p className="text-right text-[10px] font-medium text-[#858fa4]">
+              Admin
+            </p>
           </div>
           <div className="grid size-7 place-items-center rounded-full bg-[#333a4a] text-[11px] font-bold text-[#cfd6e6]">
             AS
@@ -1149,7 +1513,7 @@ function Modal({
     >
       <div
         onClick={(event) => event.stopPropagation()}
-        className={`w-full ${maxWidth} cursor-default rounded-2xl border border-white/[0.1] bg-[#0d1423] p-6 shadow-2xl`}
+        className={`w-full ${maxWidth} cursor-default rounded-2xl border border-white/10 bg-[#0d1423] p-6 shadow-2xl`}
       >
         {children}
       </div>
@@ -1157,9 +1521,15 @@ function Modal({
   );
 }
 
-function ModalHeader({ title, onClose }: { title: string; onClose: () => void }) {
+function ModalHeader({
+  title,
+  onClose,
+}: {
+  title: string;
+  onClose: () => void;
+}) {
   return (
-    <div className="flex items-start justify-between gap-5 border-b border-white/[0.08] pb-5">
+    <div className="flex items-start justify-between gap-5 border-b border-white/8 pb-5">
       <h2 className="text-[22px] font-extrabold">{title}</h2>
       <button
         type="button"
@@ -1172,27 +1542,566 @@ function ModalHeader({ title, onClose }: { title: string; onClose: () => void })
   );
 }
 
-function InfoBox({ label, title, text }: { label: string; title: string; text: string }) {
+function InfoBox({
+  label,
+  title,
+  text,
+}: {
+  label: string;
+  title: string;
+  text: string;
+}) {
   return (
-    <div className="rounded-xl border border-white/[0.08] bg-[#080d18]/70 p-5">
+    <div className="rounded-xl border border-white/8 bg-[#080d18]/70 p-5">
       <p className="text-[12px] font-extrabold uppercase tracking-[0.08em] text-[#aebcff]">
         {label}
       </p>
       <h3 className="mt-2 text-[18px] font-extrabold">{title}</h3>
-      <p className="mt-3 text-[14px] font-medium leading-6 text-[#aab3c5]">{text}</p>
+      <p className="mt-3 text-[14px] font-medium leading-6 text-[#aab3c5]">
+        {text}
+      </p>
     </div>
   );
 }
 
 function DetailBox({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-white/[0.08] bg-[#080d18]/70 p-4">
+    <div className="rounded-lg border border-white/8 bg-[#080d18]/70 p-4">
       <p className="text-[11px] font-extrabold uppercase tracking-[0.08em] text-[#7f899d]">
         {label}
       </p>
-      <p className="mt-2 break-words text-[14px] font-bold text-[#dce2ef]">{value}</p>
+      <p className="mt-2 wrap-break-word text-[14px] font-bold text-[#dce2ef]">
+        {value}
+      </p>
     </div>
   );
+}
+
+function normalizeReportPayload(
+  payload: ScanReportPayload,
+  fallbackScanId: string,
+): ReportScanData {
+  const scan = getScanRecord(payload);
+
+  const id = getString(scan.id) ?? getString(scan.scanId) ?? fallbackScanId;
+
+  const url =
+    getString(scan.url) ??
+    getString(scan.targetUrl) ??
+    getString(scan.scanUrl) ??
+    "https://ornek-site.com";
+
+  const status = normalizeScanStatus(getString(scan.status));
+  const scores = buildScoreCards(scan);
+  const overallScore =
+    getNumber(scan.overallScore) ??
+    getNumber(scan.score) ??
+    getNumber(scan.healthScore) ??
+    Math.round(
+      scores.reduce((total, item) => total + Number(item.value), 0) /
+        Math.max(scores.length, 1),
+    );
+
+  const startedAtMs =
+    getDateMs(scan.startedAt) ??
+    getDateMs(scan.createdAt) ??
+    getDateMs(scan.created_at);
+
+  const completedAtMs =
+    getDateMs(scan.completedAt) ??
+    getDateMs(scan.updatedAt) ??
+    getDateMs(scan.updated_at);
+
+  const normalizedFindings = normalizeFindings(
+    readArray(scan.findings) ??
+      readArray(scan.issues) ??
+      readArray(scan.problems) ??
+      findings,
+  );
+
+  const normalizedVitals = normalizeVitals(
+    readArray(scan.vitals) ??
+      readArray(scan.coreWebVitals) ??
+      readArray(scan.webVitals) ??
+      vitals,
+  );
+
+  const normalizedPages = normalizePages(
+    readArray(scan.pages) ??
+      readArray(scan.pageResults) ??
+      readArray(scan.scannedPages) ??
+      pages,
+    completedAtMs ?? startedAtMs,
+  );
+
+  const normalizedSuggestions = normalizeSuggestions(
+    readArray(scan.suggestions) ??
+      readArray(scan.recommendations) ??
+      suggestions,
+  );
+
+  return {
+    id,
+    url,
+    dateText: formatReportDate(completedAtMs ?? startedAtMs ?? Date.now()),
+    status,
+    scopeText: buildScopeText(scan),
+    durationText: buildDurationText(scan, startedAtMs, completedAtMs),
+    engineText: getString(scan.engine) ?? "Precheck Crawler v2",
+    overallScore: clampNumber(overallScore, 0, 100),
+    scoreCards: scores,
+    findings: normalizedFindings,
+    suggestions: normalizedSuggestions,
+    vitals: normalizedVitals,
+    pages: normalizedPages,
+  };
+}
+
+function getScanRecord(payload: ScanReportPayload): Record<string, unknown> {
+  if (payload.scan && typeof payload.scan === "object") return payload.scan;
+  if (payload.data && typeof payload.data === "object") return payload.data;
+
+  return payload;
+}
+
+function buildScoreCards(scan: Record<string, unknown>): ScoreCardItem[] {
+  const rawScores = toRecord(scan.scores);
+
+  const scoreMap = {
+    performance:
+      getNumber(rawScores.performance) ??
+      getNumber(rawScores.performans) ??
+      getNumber(scan.performanceScore),
+    seo: getNumber(rawScores.seo) ?? getNumber(scan.seoScore),
+    accessibility:
+      getNumber(rawScores.accessibility) ??
+      getNumber(rawScores.erişilebilirlik) ??
+      getNumber(scan.accessibilityScore),
+    ux:
+      getNumber(rawScores.ux) ??
+      getNumber(rawScores.responsive) ??
+      getNumber(scan.uxScore),
+    security:
+      getNumber(rawScores.security) ??
+      getNumber(rawScores.güvenlik) ??
+      getNumber(scan.securityScore),
+  };
+
+  const fallbackValues = {
+    performance: 95,
+    seo: 88,
+    accessibility: 90,
+    ux: 94,
+    security: 91,
+  };
+
+  return [
+    {
+      ...scoreCards[0],
+      value: String(
+        clampNumber(scoreMap.performance ?? fallbackValues.performance, 0, 100),
+      ),
+      active: Boolean(
+        (scoreMap.performance ?? fallbackValues.performance) >= 90,
+      ),
+    },
+    {
+      ...scoreCards[1],
+      value: String(clampNumber(scoreMap.seo ?? fallbackValues.seo, 0, 100)),
+      active: Boolean((scoreMap.seo ?? fallbackValues.seo) >= 90),
+    },
+    {
+      ...scoreCards[2],
+      value: String(
+        clampNumber(
+          scoreMap.accessibility ?? fallbackValues.accessibility,
+          0,
+          100,
+        ),
+      ),
+      active: Boolean(
+        (scoreMap.accessibility ?? fallbackValues.accessibility) >= 90,
+      ),
+    },
+    {
+      ...scoreCards[3],
+      value: String(clampNumber(scoreMap.ux ?? fallbackValues.ux, 0, 100)),
+      active: Boolean((scoreMap.ux ?? fallbackValues.ux) >= 90),
+    },
+    {
+      ...scoreCards[4],
+      value: String(
+        clampNumber(scoreMap.security ?? fallbackValues.security, 0, 100),
+      ),
+      active: Boolean((scoreMap.security ?? fallbackValues.security) >= 90),
+    },
+  ];
+}
+
+function normalizeFindings(rawFindings: unknown[]): Finding[] {
+  return rawFindings.map((item) => {
+    if (typeof item === "string") {
+      return {
+        title: item,
+        desc: "Tarama sırasında tespit edildi.",
+        level: "ORTA",
+        icon: "warning",
+        tone: "orange",
+        solution:
+          "Bu bulguyu ilgili sayfa veya modül üzerinde inceleyip önerilen düzeltmeyi uygulayın.",
+      };
+    }
+
+    const record = toRecord(item);
+    const severity =
+      getString(record.severity) ??
+      getString(record.level) ??
+      getString(record.priority) ??
+      "medium";
+
+    const tone = getFindingTone(severity);
+
+    return {
+      title:
+        getString(record.title) ??
+        getString(record.name) ??
+        getString(record.rule) ??
+        "Tespit edilen bulgu",
+      desc:
+        getString(record.desc) ??
+        getString(record.description) ??
+        getString(record.message) ??
+        "Tarama sırasında iyileştirme gerektiren bir alan tespit edildi.",
+      level: getFindingLevel(severity),
+      icon: getString(record.icon) ?? (tone === "red" ? "warning" : "timer"),
+      tone,
+      solution:
+        getString(record.solution) ??
+        getString(record.recommendation) ??
+        getString(record.fix) ??
+        "Bu bulguya bağlı dosya, sayfa veya komponenti kontrol ederek rapordaki önerileri uygulayın.",
+    };
+  });
+}
+
+function normalizeSuggestions(rawSuggestions: unknown[]): Suggestion[] {
+  return rawSuggestions.map((item) => {
+    if (typeof item === "string") {
+      return {
+        title: item,
+        desc: "Tarama sonucuna göre önerilen iyileştirme.",
+        impact: "Orta",
+        actions: [
+          "İlgili modülü kontrol edin.",
+          "Değişiklik sonrası tekrar analiz çalıştırın.",
+        ],
+      };
+    }
+
+    const record = toRecord(item);
+    const rawActions = readArray(record.actions);
+
+    return {
+      title:
+        getString(record.title) ?? getString(record.name) ?? "Çözüm önerisi",
+      desc:
+        getString(record.desc) ??
+        getString(record.description) ??
+        getString(record.message) ??
+        "Tarama sonucuna göre önerilen iyileştirme.",
+      impact: getString(record.impact) ?? getString(record.priority) ?? "Orta",
+      actions: rawActions?.map((action) => String(action)) ?? [
+        "İlgili alanı kontrol edin.",
+        "Düzeltmeden sonra yeniden analiz edin.",
+      ],
+    };
+  });
+}
+
+function normalizeVitals(rawVitals: unknown[]): Vital[] {
+  return rawVitals.map((item) => {
+    if (typeof item === "string") {
+      return {
+        metric: item,
+        value: "-",
+        status: "Bilgi yok",
+        avg: "-",
+        trend: "→ Sabit",
+        tone: "orange",
+        width: "50%",
+      };
+    }
+
+    const record = toRecord(item);
+
+    const status =
+      getString(record.status) ?? getString(record.rating) ?? "İyileştirilmeli";
+
+    const rawTone = getString(record.tone)?.toLowerCase();
+
+    const tone: Vital["tone"] =
+      rawTone === "green" || rawTone === "orange"
+        ? rawTone
+        : isGoodStatus(status)
+          ? "green"
+          : "orange";
+
+    return {
+      metric:
+        getString(record.metric) ??
+        getString(record.name) ??
+        getString(record.title) ??
+        "Core Web Vital",
+      value:
+        getString(record.value) ??
+        getString(record.ours) ??
+        getString(record.current) ??
+        "-",
+      status,
+      avg:
+        getString(record.avg) ??
+        getString(record.average) ??
+        getString(record.industryAverage) ??
+        "-",
+      trend:
+        getString(record.trend) ?? (tone === "green" ? "↘ İyi" : "↗ Dikkat"),
+      tone,
+      width:
+        getString(record.width) ??
+        `${clampNumber(getNumber(record.score) ?? (tone === "green" ? 82 : 58), 0, 100)}%`,
+    };
+  });
+}
+
+function normalizePages(
+  rawPages: unknown[],
+  fallbackDateMs?: number | null,
+): PageRow[] {
+  return rawPages.map((item, index) => {
+    if (typeof item === "string") {
+      return {
+        path: item,
+        score: "85",
+        critical: "—",
+        warning: "1 Uyarı",
+        check: formatReportDate(fallbackDateMs ?? Date.now()),
+      };
+    }
+
+    const record = toRecord(item);
+    const criticalCount =
+      getNumber(record.critical) ??
+      getNumber(record.criticalCount) ??
+      getNumber(record.criticalIssues) ??
+      0;
+
+    const warningCount =
+      getNumber(record.warning) ??
+      getNumber(record.warningCount) ??
+      getNumber(record.warnings) ??
+      0;
+
+    return {
+      path:
+        getString(record.path) ??
+        getString(record.url) ??
+        getString(record.page) ??
+        `/sayfa-${index + 1}`,
+      score: String(
+        clampNumber(
+          getNumber(record.score) ?? getNumber(record.healthScore) ?? 85,
+          0,
+          100,
+        ),
+      ),
+      critical: criticalCount > 0 ? `${criticalCount} Kritik` : "—",
+      warning: warningCount > 0 ? `${warningCount} Uyarı` : "—",
+      check:
+        getString(record.check) ??
+        getString(record.checkedAt) ??
+        getString(record.lastChecked) ??
+        formatReportDate(fallbackDateMs ?? Date.now()),
+    };
+  });
+}
+
+function buildScopeText(scan: Record<string, unknown>) {
+  const scopeType =
+    getString(scan.scopeType) ??
+    getString(scan.scope) ??
+    getString(scan.pageScope) ??
+    "Standart Tarama";
+
+  const crawlDepth =
+    getString(scan.crawlDepth) ??
+    getString(scan.depth) ??
+    getString(scan.crawl_depth);
+
+  if (!crawlDepth) return scopeType;
+
+  return `${scopeType} / ${crawlDepth}`;
+}
+
+function buildDurationText(
+  scan: Record<string, unknown>,
+  startedAtMs?: number | null,
+  completedAtMs?: number | null,
+) {
+  const duration =
+    getString(scan.duration) ??
+    getString(scan.durationText) ??
+    getString(scan.elapsed);
+
+  if (duration) return duration;
+
+  if (startedAtMs && completedAtMs && completedAtMs > startedAtMs) {
+    return formatElapsed(Math.floor((completedAtMs - startedAtMs) / 1000));
+  }
+
+  return "08:47";
+}
+
+function normalizeScanStatus(value?: string | null): ScanStatus {
+  const status = value?.toLowerCase();
+
+  if (status === "queued" || status === "pending" || status === "waiting") {
+    return "queued";
+  }
+
+  if (status === "completed" || status === "done" || status === "success") {
+    return "completed";
+  }
+
+  if (status === "cancelled" || status === "canceled") {
+    return "cancelled";
+  }
+
+  if (status === "failed" || status === "error") {
+    return "failed";
+  }
+
+  return "running";
+}
+
+function getScanStatusLabel(status: ScanStatus) {
+  if (status === "completed") return "Tamamlandı";
+  if (status === "cancelled") return "İptal Edildi";
+  if (status === "failed") return "Hata";
+  if (status === "queued") return "Sırada";
+
+  return "Devam Ediyor";
+}
+
+function getFindingTone(severity: string): FindingTone {
+  const level = severity.toLowerCase();
+
+  if (
+    level.includes("critical") ||
+    level.includes("high") ||
+    level.includes("kritik") ||
+    level.includes("yüksek")
+  ) {
+    return "red";
+  }
+
+  return "orange";
+}
+
+function getFindingLevel(severity: string) {
+  const level = severity.toLowerCase();
+
+  if (level.includes("critical") || level.includes("kritik")) return "KRİTİK";
+  if (level.includes("high") || level.includes("yüksek")) return "YÜKSEK";
+  if (level.includes("medium") || level.includes("orta")) return "ORTA";
+  if (level.includes("low") || level.includes("düşük")) return "DÜŞÜK";
+
+  return "ORTA";
+}
+
+function isGoodStatus(status: string) {
+  const value = status
+    .toLowerCase()
+    .replaceAll("ı", "i")
+    .replaceAll("İ", "i")
+    .replaceAll("i̇", "i")
+    .trim();
+
+  return (
+    value === "iyi" ||
+    value === "good" ||
+    value === "passed" ||
+    value === "başarılı" ||
+    value === "basarili"
+  );
+}
+
+function readArray(value: unknown): unknown[] | null {
+  if (Array.isArray(value)) return value;
+
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+
+      return Array.isArray(parsed) ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+}
+
+function toRecord(value: unknown): Record<string, unknown> {
+  if (value && typeof value === "object")
+    return value as Record<string, unknown>;
+
+  return {};
+}
+
+function getString(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value : null;
+}
+
+function getNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+
+  if (typeof value === "string") {
+    const parsed = Number(value);
+
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+}
+
+function getDateMs(value: unknown): number | null {
+  if (typeof value !== "string" && typeof value !== "number") return null;
+
+  const date = new Date(value);
+  const time = date.getTime();
+
+  return Number.isFinite(time) ? time : null;
+}
+
+function clampNumber(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, Math.round(value)));
+}
+
+function formatReportDate(value: number) {
+  return new Intl.DateTimeFormat("tr-TR", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
+function formatElapsed(totalSeconds: number) {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
 function Icon({ name, className = "" }: { name: string; className?: string }) {
@@ -1200,28 +2109,50 @@ function Icon({ name, className = "" }: { name: string; className?: string }) {
     brand: <path d="M4 16 9 9l4 4 7-9M4 20h16" />,
     grid: <path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z" />,
     search: <path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14ZM20 20l-4-4" />,
-    live: <path d="M4 12a8 8 0 0 1 4-6.9M20 12a8 8 0 0 0-4-6.9M8 12a4 4 0 0 1 2-3.5M16 12a4 4 0 0 0-2-3.5M12 13h.01" />,
+    live: (
+      <path d="M4 12a8 8 0 0 1 4-6.9M20 12a8 8 0 0 0-4-6.9M8 12a4 4 0 0 1 2-3.5M16 12a4 4 0 0 0-2-3.5M12 13h.01" />
+    ),
     history: <path d="M4 12a8 8 0 1 0 2.3-5.7L4 8.6M4 4v4.6h4.6M12 8v5l3 2" />,
     file: <path d="M6 3h9l4 4v14H6V3ZM14 3v5h5M9 13h6M9 17h6" />,
-    team: <path d="M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM16 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM3 20a5 5 0 0 1 10 0M11 20a5 5 0 0 1 10 0" />,
-    settings: <path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8ZM4 12h2M18 12h2M12 4v2M12 18v2M6.3 6.3l1.4 1.4M16.3 16.3l1.4 1.4M17.7 6.3l-1.4 1.4M7.7 16.3l-1.4 1.4" />,
-    help: <path d="M12 18h.01M9.5 9a2.5 2.5 0 1 1 4.2 1.8c-.9.8-1.7 1.4-1.7 3.2M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z" />,
+    team: (
+      <path d="M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM16 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM3 20a5 5 0 0 1 10 0M11 20a5 5 0 0 1 10 0" />
+    ),
+    settings: (
+      <path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8ZM4 12h2M18 12h2M12 4v2M12 18v2M6.3 6.3l1.4 1.4M16.3 16.3l1.4 1.4M17.7 6.3l-1.4 1.4M7.7 16.3l-1.4 1.4" />
+    ),
+    help: (
+      <path d="M12 18h.01M9.5 9a2.5 2.5 0 1 1 4.2 1.8c-.9.8-1.7 1.4-1.7 3.2M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z" />
+    ),
     bell: <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM10 21h4" />,
     download: <path d="M12 3v12M8 11l4 4 4-4M5 20h14" />,
-    refresh: <path d="M4 12a8 8 0 0 1 13.6-5.6L20 9M20 4v5h-5M20 12a8 8 0 0 1-13.6 5.6L4 15M4 20v-5h5" />,
-    calendar: <path d="M7 3v4M17 3v4M4 8h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z" />,
+    refresh: (
+      <path d="M4 12a8 8 0 0 1 13.6-5.6L20 9M20 4v5h-5M20 12a8 8 0 0 1-13.6 5.6L4 15M4 20v-5h5" />
+    ),
+    calendar: (
+      <path d="M7 3v4M17 3v4M4 8h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z" />
+    ),
     external: <path d="M14 4h6v6M20 4l-9 9M20 14v6H4V4h6" />,
     speed: <path d="M4 14a8 8 0 1 1 16 0M12 14l4-4M9 18h6" />,
-    accessibility: <path d="M12 5a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM4 8h16M12 8v13M8 21l4-8 4 8" />,
-    flow: <path d="M7 7h.01M17 7h.01M7 17h.01M17 17h.01M7 7h10M7 7v10M17 7v10M7 17h10" />,
-    shield: <path d="M12 3 5 6v6c0 4.5 2.9 7.7 7 9 4.1-1.3 7-4.5 7-9V6l-7-3Z" />,
+    accessibility: (
+      <path d="M12 5a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM4 8h16M12 8v13M8 21l4-8 4 8" />
+    ),
+    flow: (
+      <path d="M7 7h.01M17 7h.01M7 17h.01M17 17h.01M7 7h10M7 7v10M17 7v10M7 17h10" />
+    ),
+    shield: (
+      <path d="M12 3 5 6v6c0 4.5 2.9 7.7 7 9 4.1-1.3 7-4.5 7-9V6l-7-3Z" />
+    ),
     warning: <path d="M12 4 21 20H3L12 4ZM12 9v5M12 17h.01" />,
     mobile: <path d="M9 2h6v20H9zM12 18h.01" />,
     timer: <path d="M12 8v5l3 2M9 2h6M12 22a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z" />,
     code: <path d="m8 9-4 3 4 3M16 9l4 3-4 3" />,
     image: <path d="M4 5h16v14H4zM8 13l2-2 3 3 2-2 3 4M8 9h.01" />,
-    eye: <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12ZM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />,
-    link: <path d="M10 13a5 5 0 0 0 7.1 0l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1M14 11a5 5 0 0 0-7.1 0l-2 2A5 5 0 0 0 12 20.1l1.1-1.1" />,
+    eye: (
+      <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12ZM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
+    ),
+    link: (
+      <path d="M10 13a5 5 0 0 0 7.1 0l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1M14 11a5 5 0 0 0-7.1 0l-2 2A5 5 0 0 0 12 20.1l1.1-1.1" />
+    ),
   };
 
   return (

@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
-type ScanStatus = "running" | "completed" | "cancelled";
+type ScanStatus = "queued" | "running" | "completed" | "cancelled" | "failed";
+
+type ModuleStatus = "queued" | "running" | "completed" | "cancelled" | "failed";
 
 type LogItem = {
   time: string;
@@ -24,6 +26,34 @@ type FindingItem = {
   solution: string;
 };
 
+type ModuleProgressItem = {
+  title: string;
+  icon: string;
+  status: ModuleStatus;
+  active?: boolean;
+};
+
+type NormalizedScan = {
+  id: string;
+  url: string;
+  status: ScanStatus;
+  progress: number;
+  logs: LogItem[];
+  findings: FindingItem[];
+  modules: ModuleProgressItem[];
+  startedAtMs: number | null;
+  totalTests: number;
+  completedTests: number;
+  scopeText: string;
+  devicesText: string;
+  moduleSummary: string;
+};
+
+type ScanApiPayload = {
+  scan?: Record<string, unknown>;
+  data?: Record<string, unknown>;
+} & Record<string, unknown>;
+
 const sidebarItems = [
   { label: "Genel Bakış", href: "/dashboard", icon: "grid" },
   { label: "Yeni Tarama", href: "/scanner", icon: "scan" },
@@ -34,118 +64,81 @@ const sidebarItems = [
   { label: "Ayarlar", href: "/settings", icon: "settings" },
 ];
 
-const initialLogs: LogItem[] = [
-  {
-    time: "10:44:12",
-    icon: "refresh",
-    text: "DOM yapısı taranıyor, derinlik seviyesi: 3",
-    active: true,
-  },
-  {
-    time: "10:44:05",
-    icon: "refresh",
-    text: "JavaScript payload analizi yürütülüyor... [Modül 4/12]",
-  },
-  {
-    time: "10:43:10",
-    icon: "speed",
-    text: "Performans testi: LCP ölçümü tamamlandı (1.2s - İyi).",
-    success: true,
-  },
-  {
-    time: "10:42:35",
-    icon: "html",
-    text: "Meta tag analizi: 3 uyarı bulundu (Missing canonical).",
-    warning: true,
-  },
-  {
-    time: "10:42:21",
-    icon: "server",
-    text: "DNS çözümlemesi tamamlandı. (104.21.43.12)",
-  },
-];
-
-const runtimeLogs = [
-  "Görsel optimizasyon kontrolü başlatıldı.",
-  "Responsive breakpoint testi yürütülüyor. [Desktop]",
-  "Erişilebilirlik etiketleri kontrol ediliyor.",
-  "Form validasyon kuralları simüle ediliyor.",
-  "SEO derin analizi tamamlandı. 2 uyarı bulundu.",
-  "Mobil uyumluluk testi tamamlandı.",
-  "Rapor çıktısı hazırlanıyor.",
-];
-
-const findings: FindingItem[] = [
-  {
-    title: "Kritik JS Kütüphanesi Açığı",
-    desc: "Eski sürüm jQuery tespit edildi (v1.12.4).",
-    level: "Yüksek",
-    tone: "red",
-    icon: "alert",
-    solution:
-      "jQuery sürümünü güncelleyin veya bağımlılığı kaldırın. Eski sürüm kütüphaneler XSS ve güvenlik riskleri oluşturabilir.",
-  },
-  {
-    title: "Eksik HSTS Başlığı",
-    desc: "Strict-Transport-Security başlığı sunucu yanıtında bulunamadı.",
-    level: "Orta",
-    tone: "orange",
-    icon: "warning",
-    solution:
-      "Sunucu yanıtına Strict-Transport-Security header ekleyin. Bu, tarayıcının bağlantıyı HTTPS üzerinden zorlamasını sağlar.",
-  },
-  {
-    title: "Gereksiz Büyük İmaj",
-    desc: "hero-bg.jpg (2.4MB) optimize edilmemiş.",
-    level: "Düşük",
-    tone: "yellow",
-    icon: "info",
-    solution:
-      "Görseli WebP/AVIF formatına çevirin, doğru width/height değerleri verin ve kritik olmayan görsellerde lazy loading kullanın.",
-  },
-];
-
-const completedModules = [
-  { title: "Altyapı & DNS Analizi", icon: "server" },
-  { title: "SSL/TLS Sertifika Kontrolü", icon: "lock" },
-  { title: "Statik Kod Analizi (HTML)", icon: "code" },
-  { title: "Temel Performans Metrikleri", icon: "speed" },
-];
-
-const waitingModules = [
-  { title: "Dinamik Güvenlik Taraması", status: "İŞLENİYOR...", active: true },
-  {
-    title: "Erişilebilirlik (WCAG) Kontrolü",
-    status: "İŞLENİYOR...",
-    active: true,
-  },
-  { title: "SEO Derin Analizi", status: "SIRADA" },
-  { title: "Mobil Uyumluluk Testi", status: "SIRADA" },
+const defaultModuleTitles = [
+  "Performans",
+  "Responsive QA",
+  "SEO",
+  "Erişilebilirlik",
+  "Interaction QA",
+  "Security Basics",
+  "Görsel QA",
+  "Form Kontrolleri",
 ];
 
 function getInitialScanUrl() {
   if (typeof window === "undefined") return "https://orneksite.com";
 
-  return new URLSearchParams(window.location.search).get("url") ?? "https://orneksite.com";
+  return (
+    new URLSearchParams(window.location.search).get("url") ??
+    "https://orneksite.com"
+  );
 }
 
 function getInitialScanId() {
-  if (typeof window === "undefined") return "scan_20250511_104218";
+  if (typeof window === "undefined") return "";
 
-  return new URLSearchParams(window.location.search).get("jobId") ?? "scan_20250511_104218";
+  const params = new URLSearchParams(window.location.search);
+
+  const queryScanId =
+    params.get("scanId") ??
+    params.get("jobId") ??
+    params.get("id");
+
+  if (queryScanId) return queryScanId;
+
+  return window.localStorage.getItem("precheck:lastScanId") ?? "";
 }
 
 export default function LivePage() {
   const router = useRouter();
   const logListRef = useRef<HTMLDivElement | null>(null);
+  const isFetchingRef = useRef(false);
+  const redirectStartedRef = useRef(false);
+  const redirectTimerRef = useRef<number | null>(null);
 
-  const [scanUrl] = useState(getInitialScanUrl);
+  const [scanUrl, setScanUrl] = useState(getInitialScanUrl);
   const [scanId] = useState(getInitialScanId);
-  const [progress, setProgress] = useState(71);
-  const [elapsedSeconds, setElapsedSeconds] = useState(133);
-  const [scanStatus, setScanStatus] = useState<ScanStatus>("running");
+  const [progress, setProgress] = useState(0);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [startedAtMs, setStartedAtMs] = useState<number | null>(null);
+  const [scanStatus, setScanStatus] = useState<ScanStatus>("queued");
   const [autoScroll, setAutoScroll] = useState(true);
-  const [logs, setLogs] = useState<LogItem[]>(initialLogs);
+  const [logs, setLogs] = useState<LogItem[]>([
+    {
+      time: getCurrentTime(),
+      icon: "refresh",
+      text: "Canlı tarama verisi bekleniyor.",
+      active: true,
+    },
+  ]);
+  const [findings, setFindings] = useState<FindingItem[]>([]);
+  const [moduleRows, setModuleRows] = useState<ModuleProgressItem[]>(
+    buildModuleRows({
+      apiModules: [],
+      selectedModules: defaultModuleTitles,
+      progress: 0,
+      status: "queued",
+    }),
+  );
+  const [totalTests, setTotalTests] = useState(262);
+  const [completedTests, setCompletedTests] = useState(0);
+  const [scopeText, setScopeText] = useState("Standart Tarama");
+  const [devicesText, setDevicesText] = useState("Seçilen ekran boyutları");
+  const [moduleSummary, setModuleSummary] = useState("Performans, SEO, QA");
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [isLocalCancelled, setIsLocalCancelled] = useState(false);
+
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isCancelOpen, setIsCancelOpen] = useState(false);
   const [selectedFinding, setSelectedFinding] = useState<FindingItem | null>(
@@ -160,79 +153,190 @@ export default function LivePage() {
     }
   }, [scanUrl]);
 
-  const completedTests = Math.min(262, Math.round((progress / 100) * 262));
+  const completedModuleCount = moduleRows.filter(
+    (item) => item.status === "completed",
+  ).length;
+
   const remainingModules =
     scanStatus === "completed"
       ? 0
-      : Math.max(0, 12 - Math.round((progress / 100) * 12));
-  const remainingTime =
-    scanStatus === "completed"
-      ? "00:00 dk"
-      : scanStatus === "cancelled"
-        ? "Durduruldu"
-        : "02:47 dk";
+      : scanStatus === "cancelled" || scanStatus === "failed"
+        ? Math.max(0, moduleRows.length - completedModuleCount)
+        : Math.max(0, moduleRows.length - completedModuleCount);
+
+  const remainingTime = getRemainingTimeText({
+    status: scanStatus,
+    progress,
+    elapsedSeconds,
+  });
 
   const statusText =
     scanStatus === "completed"
       ? "RAPOR HAZIR"
       : scanStatus === "cancelled"
         ? "TARAMA İPTAL EDİLDİ"
-        : "CANLI ANALİZ";
+        : scanStatus === "failed"
+          ? "TARAMA HATASI"
+          : scanStatus === "queued"
+            ? "SIRADA BEKLİYOR"
+            : "CANLI ANALİZ";
 
   const statusColor =
     scanStatus === "completed"
       ? "text-[#25d18c]"
-      : scanStatus === "cancelled"
+      : scanStatus === "cancelled" || scanStatus === "failed"
         ? "text-[#ff666d]"
-        : "text-[#25d18c]";
+        : scanStatus === "queued"
+          ? "text-[#f0a020]"
+          : "text-[#25d18c]";
 
   useEffect(() => {
-    if (scanStatus !== "running") return;
+    if (!scanId) {
+      setIsInitialLoading(false);
+      setScanStatus("failed");
+      setApiError(
+        "Canlı izleme başlatılamadı. URL içinde geçerli bir scanId bulunamadı.",
+      );
+      setLogs([
+        {
+          time: getCurrentTime(),
+          icon: "alert",
+          text: "scanId bulunamadı. Yeni bir tarama başlatın.",
+          warning: true,
+          active: true,
+        },
+      ]);
+      return;
+    }
 
-    const interval = window.setInterval(() => {
-      setElapsedSeconds((current) => current + 1);
+    if (isLocalCancelled) return;
 
-      setProgress((current) => {
-        if (current >= 100) return 100;
+    let isMounted = true;
+    let intervalId: number | null = null;
 
-        const next = Math.min(100, current + 1);
-        const logIndex = Math.floor((next - 75) / 5);
-        const nextLogText = runtimeLogs[logIndex];
+    const fetchScan = async () => {
+      if (isFetchingRef.current || redirectStartedRef.current) return;
 
-        if (next > 72 && next % 5 === 0 && nextLogText) {
-          setLogs((currentLogs) => [
-            {
-              time: getCurrentTime(),
-              icon: next > 94 ? "chart" : "refresh",
-              text: nextLogText,
-              active: true,
-              success: next > 90,
-              warning: next === 85,
-            },
-            ...currentLogs.map((log) => ({ ...log, active: false })),
-          ]);
+      isFetchingRef.current = true;
+
+      try {
+        const response = await fetch(`/api/scans/${encodeURIComponent(scanId)}`, {
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          if (response.status === 404) {
+            throw new Error("Bu scanId için tarama kaydı bulunamadı.");
+          }
+
+          throw new Error("Tarama durumu alınırken bir hata oluştu.");
         }
 
-        if (next >= 100) {
-          setScanStatus("completed");
-          setLogs((currentLogs) => [
-            {
-              time: getCurrentTime(),
-              icon: "chart",
-              text: "Tarama tamamlandı. Detaylı rapor hazırlandı.",
-              success: true,
-              active: true,
-            },
-            ...currentLogs.map((log) => ({ ...log, active: false })),
-          ]);
+        const payload = (await response.json()) as ScanApiPayload;
+        const normalizedScan = normalizeScanPayload(payload, scanId);
+
+        if (!isMounted) return;
+
+        setApiError(null);
+        setScanUrl(normalizedScan.url);
+        setProgress(normalizedScan.progress);
+        setScanStatus(normalizedScan.status);
+        setLogs(normalizedScan.logs);
+        setFindings(normalizedScan.findings);
+        setModuleRows(normalizedScan.modules);
+        setTotalTests(normalizedScan.totalTests);
+        setCompletedTests(normalizedScan.completedTests);
+        setScopeText(normalizedScan.scopeText);
+        setDevicesText(normalizedScan.devicesText);
+        setModuleSummary(normalizedScan.moduleSummary);
+
+        setStartedAtMs((current) => {
+          return normalizedScan.startedAtMs ?? current ?? Date.now();
+        });
+
+        setIsInitialLoading(false);
+
+        const isCompleted =
+          normalizedScan.status === "completed" ||
+          normalizedScan.progress >= 100;
+
+        if (isCompleted && !redirectStartedRef.current) {
+          redirectStartedRef.current = true;
+
+          if (intervalId) {
+            window.clearInterval(intervalId);
+          }
+
+          redirectTimerRef.current = window.setTimeout(() => {
+            router.replace(
+              `/report?scanId=${encodeURIComponent(normalizedScan.id)}`,
+            );
+          }, 700);
         }
+      } catch (error) {
+        if (!isMounted) return;
 
-        return next;
-      });
-    }, 1200);
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Tarama durumu alınırken bilinmeyen bir hata oluştu.";
 
-    return () => window.clearInterval(interval);
-  }, [scanStatus]);
+        setApiError(message);
+        setIsInitialLoading(false);
+
+        setLogs((currentLogs) => [
+          {
+            time: getCurrentTime(),
+            icon: "alert",
+            text: message,
+            warning: true,
+            active: true,
+          },
+          ...currentLogs.map((log) => ({ ...log, active: false })),
+        ]);
+      } finally {
+        isFetchingRef.current = false;
+      }
+    };
+
+    void fetchScan();
+
+    intervalId = window.setInterval(() => {
+      void fetchScan();
+    }, 1500);
+
+    return () => {
+      isMounted = false;
+
+      if (intervalId) {
+        window.clearInterval(intervalId);
+      }
+    };
+  }, [scanId, router, isLocalCancelled]);
+
+  useEffect(() => {
+    if (!startedAtMs) return;
+
+    const updateElapsedTime = () => {
+      setElapsedSeconds(
+        Math.max(0, Math.floor((Date.now() - startedAtMs) / 1000)),
+      );
+    };
+
+    updateElapsedTime();
+
+    if (
+      scanStatus === "completed" ||
+      scanStatus === "cancelled" ||
+      scanStatus === "failed"
+    ) {
+      return;
+    }
+
+    const intervalId = window.setInterval(updateElapsedTime, 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, [startedAtMs, scanStatus]);
 
   useEffect(() => {
     if (!autoScroll) return;
@@ -243,7 +347,16 @@ export default function LivePage() {
     });
   }, [logs, autoScroll]);
 
+  useEffect(() => {
+    return () => {
+      if (redirectTimerRef.current) {
+        window.clearTimeout(redirectTimerRef.current);
+      }
+    };
+  }, []);
+
   const handleCancelScan = () => {
+    setIsLocalCancelled(true);
     setScanStatus("cancelled");
     setIsCancelOpen(false);
     setLogs((currentLogs) => [
@@ -263,20 +376,18 @@ export default function LivePage() {
   };
 
   const handleGoReport = () => {
-    router.push(
-      `/report?url=${encodeURIComponent(scanUrl)}&jobId=${encodeURIComponent(scanId)}`,
-    );
+    router.push(`/report?scanId=${encodeURIComponent(scanId)}`);
   };
 
   return (
     <main className="min-h-screen overflow-hidden bg-[#070b15] text-[#e7e9f4]">
-      <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.035)_1px,transparent_1px)] bg-[size:32px_32px]" />
+      <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.035)_1px,transparent_1px)] bg-size-[32px_32px]" />
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_35%_0%,rgba(64,102,255,0.13),transparent_34%),linear-gradient(180deg,rgba(8,13,24,0.1),#070b15_85%)]" />
 
       <div className="relative z-10 flex min-h-screen">
         <Sidebar />
 
-        <section className="min-w-0 flex-1 pb-[74px]">
+        <section className="min-w-0 flex-1 pb-18.5">
           <Topbar />
 
           <div className="mx-auto grid max-w-[1600px] gap-6 px-6 py-9 xl:grid-cols-[1fr_290px]">
@@ -305,7 +416,7 @@ export default function LivePage() {
                   <button
                     type="button"
                     onClick={() => setIsDetailsOpen(true)}
-                    className="h-10 items-center gap-2 rounded-md border border-white/[0.12] bg-[#111827]/70 px-5 text-[13px] font-bold text-[#c4cad8] transition hover:border-white/25 hover:bg-white/[0.06] lg:inline-flex"
+                    className="h-10 items-center gap-2 rounded-md border border-white/12 bg-[#111827]/70 px-5 text-[13px] font-bold text-[#c4cad8] transition hover:border-white/25 hover:bg-white/6 lg:inline-flex"
                   >
                     <Icon name="eye" className="size-4" />
                     Tarama Ayrıntılarını Görüntüle
@@ -313,9 +424,15 @@ export default function LivePage() {
                 </div>
               </div>
 
-              <section className="mt-7 overflow-hidden rounded-xl border border-white/[0.09] bg-[#0d1423]/88 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+              {apiError && (
+                <div className="mt-6 rounded-xl border border-[#7c3539] bg-[#2a1418]/80 p-4 text-[14px] font-bold leading-6 text-[#ff9a9f]">
+                  {apiError}
+                </div>
+              )}
+
+              <section className="mt-7 overflow-hidden rounded-xl border border-white/9 bg-[#0d1423]/88 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
                 <div className="grid lg:grid-cols-[300px_1fr]">
-                  <div className="border-b border-white/[0.08] p-9 lg:border-b-0 lg:border-r">
+                  <div className="border-b border-white/8 p-9 lg:border-b-0 lg:border-r">
                     <div className="flex items-center gap-4">
                       <Icon name="globe" className="size-6 text-[#c7d2ff]" />
                       <div>
@@ -330,14 +447,14 @@ export default function LivePage() {
 
                     <div className="mt-11 flex justify-center">
                       <div
-                        className="relative grid size-[190px] place-items-center rounded-full"
+                        className="relative grid size-47.5 place-items-center rounded-full"
                         style={{
                           background: `conic-gradient(#2f6df6 0 ${progress}%, #202a3c ${progress}% 100%)`,
                         }}
                       >
-                        <div className="grid size-[140px] place-items-center rounded-full bg-[#0d1423]">
+                        <div className="grid size-35 place-items-center rounded-full bg-[#0d1423]">
                           <span className="text-[42px] font-extrabold tracking-[-0.06em]">
-                            {progress}%
+                            {isInitialLoading ? "..." : `${progress}%`}
                           </span>
                         </div>
                       </div>
@@ -348,31 +465,36 @@ export default function LivePage() {
                     >
                       <span
                         className={`size-2 rounded-full ${
-                          scanStatus === "cancelled"
+                          scanStatus === "cancelled" || scanStatus === "failed"
                             ? "bg-[#ff666d]"
-                            : "bg-[#25d18c]"
+                            : scanStatus === "queued"
+                              ? "bg-[#f0a020]"
+                              : "bg-[#25d18c]"
                         }`}
                       />
                       {statusText}
                     </div>
 
-                    <div className="mt-9 border-t border-white/[0.06] pt-7">
+                    <div className="mt-9 border-t border-white/6 pt-7">
                       <div className="grid grid-cols-3 gap-4 text-center">
-                        <MetaItem title="Başlangıç" value="10:42:18" />
+                        <MetaItem
+                          title="Başlangıç"
+                          value={startedAtMs ? formatClock(startedAtMs) : "--:--"}
+                        />
                         <MetaItem
                           title="Geçen Süre"
                           value={formatElapsed(elapsedSeconds)}
                         />
                         <MetaItem
                           title="Tarama ID"
-                          value={scanId.slice(0, 7) + "..."}
+                          value={scanId ? scanId.slice(0, 7) + "..." : "-"}
                         />
                       </div>
                     </div>
                   </div>
 
                   <div>
-                    <div className="flex h-[58px] items-center justify-between border-b border-white/[0.08] bg-white/[0.035] px-6">
+                    <div className="flex h-14.5 items-center justify-between border-b border-white/8 bg-white/[0.035] px-6">
                       <h3 className="flex items-center gap-2 text-[15px] font-extrabold text-[#cdd3df]">
                         <Icon
                           name="terminal"
@@ -390,7 +512,7 @@ export default function LivePage() {
                         <button
                           type="button"
                           onClick={() => setAutoScroll((current) => !current)}
-                          className="rounded-md border border-white/[0.08] bg-[#111827] px-2 py-1 text-[11px] font-bold text-[#9aa4b7] transition hover:border-white/20 hover:text-white"
+                          className="rounded-md border border-white/8 bg-[#111827] px-2 py-1 text-[11px] font-bold text-[#9aa4b7] transition hover:border-white/20 hover:text-white"
                         >
                           Oto-kaydır: {autoScroll ? "Açık" : "Kapalı"}
                         </button>
@@ -399,11 +521,11 @@ export default function LivePage() {
 
                     <div
                       ref={logListRef}
-                      className="max-h-[430px] space-y-3 overflow-y-auto p-7"
+                      className="max-h-107.5 space-y-3 overflow-y-auto p-7"
                     >
-                      {logs.map((log) => (
+                      {logs.map((log, index) => (
                         <div
-                          key={`${log.time}-${log.text}`}
+                          key={`${log.time}-${log.text}-${index}`}
                           className={`grid grid-cols-[86px_28px_1fr] rounded-lg px-3 py-3 ${
                             log.active
                               ? "border border-[#4d5f92] bg-[#25304a]/75 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
@@ -434,105 +556,134 @@ export default function LivePage() {
               </section>
 
               <div className="mt-6 grid gap-6 lg:grid-cols-2">
-                <section className="rounded-xl border border-white/[0.09] bg-[#0d1423]/88 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-                  <div className="flex items-center justify-between border-b border-white/[0.08] pb-5">
+                <section className="rounded-xl border border-white/9 bg-[#0d1423]/88 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+                  <div className="flex items-center justify-between border-b border-white/8 pb-5">
                     <h2 className="text-[17px] font-extrabold">
                       Anlık Bulgular
                     </h2>
-                    <span className="rounded-full bg-white/[0.16] px-3 py-1 text-[11px] font-bold text-[#aeb6c7]">
-                      12 Bulgu
+                    <span className="rounded-full bg-white/16 px-3 py-1 text-[11px] font-bold text-[#aeb6c7]">
+                      {findings.length} Bulgu
                     </span>
                   </div>
 
                   <div className="mt-5 space-y-4">
-                    {findings.map((item) => (
-                      <FindingCard
-                        key={item.title}
-                        {...item}
-                        onClick={() => setSelectedFinding(item)}
+                    {findings.length > 0 ? (
+                      findings.slice(0, 5).map((item) => (
+                        <FindingCard
+                          key={`${item.title}-${item.desc}`}
+                          {...item}
+                          onClick={() => setSelectedFinding(item)}
+                        />
+                      ))
+                    ) : (
+                      <EmptyState
+                        icon="info"
+                        title="Henüz bulgu yok"
+                        desc="Tarama ilerledikçe tespit edilen sorunlar burada görünecek."
                       />
-                    ))}
+                    )}
                   </div>
                 </section>
 
-                <section className="rounded-xl border border-white/[0.09] bg-[#0d1423]/88 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-                  <div className="flex items-center justify-between border-b border-white/[0.08] pb-5">
+                <section className="rounded-xl border border-white/9 bg-[#0d1423]/88 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+                  <div className="flex items-center justify-between border-b border-white/8 pb-5">
                     <h2 className="text-[17px] font-extrabold">
                       Tamamlanan Modüller
                     </h2>
-                    <span className="rounded-full bg-white/[0.16] px-3 py-1 text-[11px] font-bold text-[#aeb6c7]">
-                      {scanStatus === "completed" ? "12/12" : "4/12"}
+                    <span className="rounded-full bg-white/16 px-3 py-1 text-[11px] font-bold text-[#aeb6c7]">
+                      {completedModuleCount}/{moduleRows.length}
                     </span>
                   </div>
 
                   <div className="mt-5 space-y-4">
-                    {completedModules.map((item) => (
-                      <button
-                        key={item.title}
-                        type="button"
-                        onClick={() => setIsDetailsOpen(true)}
-                        className="flex min-h-[70px] w-full items-center justify-between gap-4 rounded-lg border border-white/[0.06] bg-[#111827]/75 px-5 text-left transition hover:border-white/15 hover:bg-white/[0.06]"
-                      >
-                        <div className="flex items-center gap-4">
-                          <Icon
-                            name={item.icon}
-                            className="size-5 text-[#aeb6c8]"
-                          />
-                          <p className="max-w-[170px] text-[15px] font-extrabold leading-5 text-[#cfd5e2]">
-                            {item.title}
-                          </p>
-                        </div>
-                        <span className="rounded-md border border-[#14624d] bg-[#0d372e] px-3 py-1 text-[11px] font-extrabold text-[#22d296]">
-                          ✓ Tamamlandı
-                        </span>
-                      </button>
-                    ))}
+                    {moduleRows.filter((item) => item.status === "completed")
+                      .length > 0 ? (
+                      moduleRows
+                        .filter((item) => item.status === "completed")
+                        .map((item) => (
+                          <button
+                            key={item.title}
+                            type="button"
+                            onClick={() => setIsDetailsOpen(true)}
+                            className="flex min-h-17.5 w-full items-center justify-between gap-4 rounded-lg border border-white/6 bg-[#111827]/75 px-5 text-left transition hover:border-white/15 hover:bg-white/6"
+                          >
+                            <div className="flex items-center gap-4">
+                              <Icon
+                                name={item.icon}
+                                className="size-5 text-[#aeb6c8]"
+                              />
+                              <p className="max-w-42.5 text-[15px] font-extrabold leading-5 text-[#cfd5e2]">
+                                {item.title}
+                              </p>
+                            </div>
+                            <span className="rounded-md border border-[#14624d] bg-[#0d372e] px-3 py-1 text-[11px] font-extrabold text-[#22d296]">
+                              ✓ Tamamlandı
+                            </span>
+                          </button>
+                        ))
+                    ) : (
+                      <EmptyState
+                        icon="hourglass"
+                        title="Modül tamamlanmadı"
+                        desc="İlk modül tamamlandığında burada listelenecek."
+                      />
+                    )}
                   </div>
                 </section>
               </div>
 
-              <section className="mt-6 rounded-xl border border-white/[0.09] bg-[#0d1423]/88 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+              <section className="mt-6 rounded-xl border border-white/9 bg-[#0d1423]/88 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
                 <h2 className="text-[16px] font-extrabold">
                   Devam Eden & Bekleyen Modüller
                 </h2>
-                <div className="mt-5 border-t border-white/[0.08] pt-5">
+                <div className="mt-5 border-t border-white/8 pt-5">
                   <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                    {waitingModules.map((item) => {
-                      const isCompleted = scanStatus === "completed";
-                      const isCancelled = scanStatus === "cancelled";
+                    {moduleRows
+                      .filter((item) => item.status !== "completed")
+                      .map((item) => {
+                        const isCompleted = scanStatus === "completed";
+                        const isCancelled = scanStatus === "cancelled";
+                        const isFailed = scanStatus === "failed";
+                        const isActive =
+                          item.status === "running" &&
+                          !isCompleted &&
+                          !isCancelled &&
+                          !isFailed;
 
-                      return (
-                        <div
-                          key={item.title}
-                          className={`flex min-h-[96px] flex-col justify-center rounded-lg border px-5 text-center ${
-                            item.active && !isCompleted && !isCancelled
-                              ? "border-[#6678b7] bg-white/[0.06]"
-                              : "border-white/[0.06] bg-[#080d18]/65 opacity-65"
-                          }`}
-                        >
-                          <div className="mx-auto mb-3">
-                            {item.active && !isCompleted && !isCancelled ? (
-                              <span className="block size-2 rounded-full bg-[#b8c7ff]" />
-                            ) : (
-                              <Icon
-                                name={isCompleted ? "check" : "hourglass"}
-                                className="size-5 text-[#9aa4b8]"
-                              />
-                            )}
+                        return (
+                          <div
+                            key={item.title}
+                            className={`flex min-h-24 flex-col justify-center rounded-lg border px-5 text-center ${
+                              isActive
+                                ? "border-[#6678b7] bg-white/6"
+                                : "border-white/6 bg-[#080d18]/65 opacity-65"
+                            }`}
+                          >
+                            <div className="mx-auto mb-3">
+                              {isActive ? (
+                                <span className="block size-2 rounded-full bg-[#b8c7ff]" />
+                              ) : (
+                                <Icon
+                                  name={
+                                    isCompleted
+                                      ? "check"
+                                      : isFailed
+                                        ? "alert"
+                                        : "hourglass"
+                                  }
+                                  className="size-5 text-[#9aa4b8]"
+                                />
+                              )}
+                            </div>
+                            <p className="text-[14px] font-extrabold leading-4 text-[#d3d8e6]">
+                              {item.title}
+                            </p>
+                            <p className="mt-2 text-[10px] font-extrabold uppercase tracking-[0.08em] text-[#8f9bba]">
+                              {getModuleStatusLabel(item.status, scanStatus)}
+                            </p>
                           </div>
-                          <p className="text-[14px] font-extrabold leading-4 text-[#d3d8e6]">
-                            {item.title}
-                          </p>
-                          <p className="mt-2 text-[10px] font-extrabold uppercase tracking-[0.08em] text-[#8f9bba]">
-                            {isCompleted
-                              ? "TAMAMLANDI"
-                              : isCancelled
-                                ? "DURDURULDU"
-                                : item.status}
-                          </p>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
                   </div>
                 </div>
               </section>
@@ -540,6 +691,7 @@ export default function LivePage() {
 
             <RightPanel
               completedTests={completedTests}
+              totalTests={totalTests}
               progress={progress}
               remainingModules={remainingModules}
               remainingTime={remainingTime}
@@ -548,7 +700,7 @@ export default function LivePage() {
           </div>
 
           <BottomBar
-            scanId={scanId}
+            scanId={scanId || "-"}
             scanStatus={scanStatus}
             onBackground={handleRunInBackground}
             onCancel={() => setIsCancelOpen(true)}
@@ -561,10 +713,14 @@ export default function LivePage() {
         <DetailsModal
           scanUrl={scanUrl}
           siteHost={siteHost}
-          scanId={scanId}
+          scanId={scanId || "-"}
           progress={progress}
           scanStatus={scanStatus}
           completedTests={completedTests}
+          totalTests={totalTests}
+          scopeText={scopeText}
+          devicesText={devicesText}
+          moduleSummary={moduleSummary}
           onClose={() => setIsDetailsOpen(false)}
         />
       )}
@@ -588,8 +744,8 @@ export default function LivePage() {
 
 function Sidebar() {
   return (
-    <aside className="hidden w-[240px] shrink-0 border-r border-white/[0.08] bg-[#0c111d]/90 lg:flex lg:flex-col">
-      <div className="flex h-[70px] items-center gap-3 border-b border-white/[0.07] px-5">
+    <aside className="hidden w-60 shrink-0 border-r border-white/8 bg-[#0c111d]/90 lg:flex lg:flex-col">
+      <div className="flex h-17.5 items-center gap-3 border-b border-white/[0.07] px-5">
         <div className="grid size-9 place-items-center rounded-lg bg-[#2f6df6] text-white">
           <Icon name="brand" className="size-5" />
         </div>
@@ -622,13 +778,13 @@ function Sidebar() {
         </div>
       </nav>
 
-      <div className="border-t border-white/[0.11] px-4 py-5">
-        <div className="rounded-lg border border-white/[0.09] bg-[#111827]/80 p-4">
+      <div className="border-t border-white/11 px-4 py-5">
+        <div className="rounded-lg border border-white/9 bg-[#111827]/80 p-4">
           <div className="flex items-center justify-between text-[12px] font-bold text-[#c6ccda]">
             <span>Tarama kredisi</span>
             <span className="text-[#9ea7ba]">2.450 / 5.000</span>
           </div>
-          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/[0.08]">
+          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/8">
             <div className="h-full w-[49%] rounded-full bg-[#a9baff]" />
           </div>
           <div className="mt-3 flex items-center justify-between text-[11px] font-bold text-[#858fa4]">
@@ -662,7 +818,7 @@ function Sidebar() {
 
 function Topbar() {
   return (
-    <header className="flex h-[70px] items-center justify-between border-b border-white/[0.08] bg-[#080d18]/75 px-6 backdrop-blur-xl">
+    <header className="flex h-17.5 items-center justify-between border-b border-white/8 bg-[#080d18]/75 px-6 backdrop-blur-xl">
       <nav className="hidden items-center gap-7 lg:flex">
         {[
           ["Dashboard", "/dashboard"],
@@ -684,7 +840,7 @@ function Topbar() {
       </nav>
 
       <div className="ml-auto flex items-center gap-4">
-        <div className="hidden items-center border-r border-white/[0.09] pr-4 text-right md:flex">
+        <div className="hidden items-center border-r border-white/9 pr-4 text-right md:flex">
           <div>
             <p className="text-[13px] font-bold text-[#d8dce8]">Acme Dijital</p>
             <p className="text-[12px] font-medium text-[#858fa4]">
@@ -696,7 +852,7 @@ function Topbar() {
         <Icon name="bell" className="size-5 text-[#aab2c4]" />
         <Icon name="settings" className="size-5 text-[#aab2c4]" />
 
-        <div className="hidden items-center gap-3 border-l border-white/[0.09] pl-4 md:flex">
+        <div className="hidden items-center gap-3 border-l border-white/9 pl-4 md:flex">
           <div>
             <p className="text-right text-[13px] font-bold text-[#d8dce8]">
               A. Selin
@@ -716,12 +872,14 @@ function Topbar() {
 
 function RightPanel({
   completedTests,
+  totalTests,
   progress,
   remainingModules,
   remainingTime,
   scanStatus,
 }: {
   completedTests: number;
+  totalTests: number;
   progress: number;
   remainingModules: number;
   remainingTime: string;
@@ -730,12 +888,14 @@ function RightPanel({
   return (
     <aside className="space-y-5">
       <InfoCard title="Tarama Durumu" icon="chart">
-        <div className="mt-6 rounded-lg border border-white/[0.06] bg-[#080d18]/65 p-5">
+        <div className="mt-6 rounded-lg border border-white/6 bg-[#080d18]/65 p-5">
           <div className="flex items-center justify-between text-[14px] font-bold">
             <span className="text-[#a8b1c2]">Tamamlanan Testler</span>
-            <span className="text-[#e1e6f2]">{completedTests}/262</span>
+            <span className="text-[#e1e6f2]">
+              {completedTests}/{totalTests}
+            </span>
           </div>
-          <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-white/[0.12]">
+          <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-white/12">
             <div
               className="h-full rounded-full bg-[#aebcff]"
               style={{ width: `${progress}%` }}
@@ -756,7 +916,9 @@ function RightPanel({
         <StatusLine
           icon="network"
           title="Aktif Düğüm"
-          value={scanStatus === "cancelled" ? "-" : "Node-07"}
+          value={
+            scanStatus === "cancelled" || scanStatus === "failed" ? "-" : "Node-07"
+          }
         />
         <StatusLine
           icon="queue"
@@ -778,7 +940,7 @@ function InfoCard({
   icon: string;
 }) {
   return (
-    <div className="rounded-xl border border-white/[0.09] bg-[#0d1423]/88 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+    <div className="rounded-xl border border-white/9 bg-[#0d1423]/88 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
       <h3 className="flex items-center gap-2 text-[16px] font-extrabold text-[#d9deeb]">
         <Icon name={icon} className="size-4 text-[#aebcff]" />
         {title}
@@ -798,9 +960,9 @@ function StatusLine({
   value: string;
 }) {
   return (
-    <div className="mt-4 flex min-h-[70px] items-center justify-between gap-4 rounded-lg border border-white/[0.06] bg-[#080d18]/65 px-5">
+    <div className="mt-4 flex min-h-17.5 items-center justify-between gap-4 rounded-lg border border-white/6 bg-[#080d18]/65 px-5">
       <div className="flex items-center gap-4">
-        <span className="grid size-8 place-items-center rounded-md bg-white/[0.06]">
+        <span className="grid size-8 place-items-center rounded-md bg-white/6">
           <Icon name={icon} className="size-4 text-[#aeb6c8]" />
         </span>
         <p className="text-[14px] font-extrabold text-[#c9cfdd]">{title}</p>
@@ -834,7 +996,7 @@ function FindingCard({
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full gap-4 rounded-lg border border-white/[0.04] bg-[#111827]/75 p-4 text-left transition hover:border-white/15 hover:bg-white/[0.06]"
+      className="flex w-full gap-4 rounded-lg border border-white/4 bg-[#111827]/75 p-4 text-left transition hover:border-white/15 hover:bg-white/6"
     >
       <Icon name={icon} className={`mt-1 size-5 ${iconClasses[tone]}`} />
       <div>
@@ -851,6 +1013,32 @@ function FindingCard({
         </p>
       </div>
     </button>
+  );
+}
+
+function EmptyState({
+  icon,
+  title,
+  desc,
+}: {
+  icon: string;
+  title: string;
+  desc: string;
+}) {
+  return (
+    <div className="rounded-lg border border-white/6 bg-[#080d18]/65 p-5">
+      <div className="flex items-start gap-4">
+        <span className="grid size-9 shrink-0 place-items-center rounded-md bg-white/6">
+          <Icon name={icon} className="size-4 text-[#aebcff]" />
+        </span>
+        <div>
+          <p className="text-[14px] font-extrabold text-[#d7dce8]">{title}</p>
+          <p className="mt-2 text-[12px] font-medium leading-5 text-[#9da7b9]">
+            {desc}
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -879,8 +1067,8 @@ function BottomBar({
   onReport: () => void;
 }) {
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-white/[0.08] bg-[#191d27]/95 backdrop-blur-xl lg:left-[240px]">
-      <div className="flex h-[64px] items-center justify-between gap-5 px-6">
+    <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-white/8 bg-[#191d27]/95 backdrop-blur-xl lg:left-60">
+      <div className="flex h-16 items-center justify-between gap-5 px-6">
         <div className="flex min-w-0 items-center gap-8 text-[12px] font-bold text-[#a6afc1]">
           <span className="truncate">⚙ {scanId}</span>
           <span className="hidden md:inline">
@@ -900,7 +1088,7 @@ function BottomBar({
             >
               Raporu Görüntüle
             </button>
-          ) : scanStatus === "cancelled" ? (
+          ) : scanStatus === "cancelled" || scanStatus === "failed" ? (
             <Link
               href="/scanner"
               className="h-10 rounded-md bg-[#2f6df6] px-5 py-2.5 text-[13px] font-extrabold text-white transition hover:bg-[#3b7aff]"
@@ -912,7 +1100,7 @@ function BottomBar({
               <button
                 type="button"
                 onClick={onBackground}
-                className="hidden h-10 items-center gap-2 rounded-md border border-white/[0.14] px-5 text-[13px] font-extrabold text-[#d8deeb] transition hover:border-white/25 hover:bg-white/[0.06] md:inline-flex"
+                className="hidden h-10 items-center gap-2 rounded-md border border-white/[0.14] px-5 text-[13px] font-extrabold text-[#d8deeb] transition hover:border-white/25 hover:bg-white/6 md:inline-flex"
               >
                 <Icon name="window" className="size-4" />
                 Arka Planda Çalıştır
@@ -939,6 +1127,10 @@ function DetailsModal({
   progress,
   scanStatus,
   completedTests,
+  totalTests,
+  scopeText,
+  devicesText,
+  moduleSummary,
   onClose,
 }: {
   scanUrl: string;
@@ -947,6 +1139,10 @@ function DetailsModal({
   progress: number;
   scanStatus: ScanStatus;
   completedTests: number;
+  totalTests: number;
+  scopeText: string;
+  devicesText: string;
+  moduleSummary: string;
   onClose: () => void;
 }) {
   return (
@@ -956,9 +1152,9 @@ function DetailsModal({
     >
       <div
         onClick={(event) => event.stopPropagation()}
-        className="w-full max-w-[620px] cursor-default rounded-2xl border border-white/[0.1] bg-[#0d1423] p-6 shadow-2xl"
+        className="w-full max-w-155 cursor-default rounded-2xl border border-white/10 bg-[#0d1423] p-6 shadow-2xl"
       >
-        <div className="flex items-start justify-between gap-5 border-b border-white/[0.08] pb-5">
+        <div className="flex items-start justify-between gap-5 border-b border-white/8 pb-5">
           <div>
             <h2 className="text-[22px] font-extrabold">Tarama Ayrıntıları</h2>
             <p className="mt-1 text-[13px] font-medium text-[#9fa8bb]">
@@ -977,22 +1173,16 @@ function DetailsModal({
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
           <DetailItem label="Tarama ID" value={scanId} />
-          <DetailItem
-            label="Durum"
-            value={
-              scanStatus === "completed"
-                ? "Tamamlandı"
-                : scanStatus === "cancelled"
-                  ? "İptal Edildi"
-                  : "Devam Ediyor"
-            }
-          />
+          <DetailItem label="Durum" value={getScanStatusLabel(scanStatus)} />
           <DetailItem label="URL" value={scanUrl} />
           <DetailItem label="İlerleme" value={`${progress}%`} />
-          <DetailItem label="Tamamlanan Test" value={`${completedTests}/262`} />
-          <DetailItem label="Kapsam" value="Tüm Site / Orta Crawl" />
-          <DetailItem label="Cihazlar" value="Masaüstü, Tablet, Mobil" />
-          <DetailItem label="Modüller" value="Performans, SEO, Güvenlik, QA" />
+          <DetailItem
+            label="Tamamlanan Test"
+            value={`${completedTests}/${totalTests}`}
+          />
+          <DetailItem label="Kapsam" value={scopeText} />
+          <DetailItem label="Cihazlar" value={devicesText} />
+          <DetailItem label="Modüller" value={moduleSummary} />
         </div>
       </div>
     </div>
@@ -1001,11 +1191,11 @@ function DetailsModal({
 
 function DetailItem({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-white/[0.08] bg-[#080d18]/70 p-4">
+    <div className="rounded-lg border border-white/8 bg-[#080d18]/70 p-4">
       <p className="text-[11px] font-extrabold uppercase tracking-[0.08em] text-[#7f899d]">
         {label}
       </p>
-      <p className="mt-2 break-words text-[14px] font-bold text-[#dce2ef]">
+      <p className="mt-2 wrap-break-word text-[14px] font-bold text-[#dce2ef]">
         {value}
       </p>
     </div>
@@ -1026,22 +1216,22 @@ function CancelModal({
     >
       <div
         onClick={(event) => event.stopPropagation()}
-        className="w-full max-w-[460px] cursor-default rounded-2xl border border-white/[0.1] bg-[#0d1423] p-6 shadow-2xl"
+        className="w-full max-w-115 cursor-default rounded-2xl border border-white/10 bg-[#0d1423] p-6 shadow-2xl"
       >
         <h2 className="text-[22px] font-extrabold">
           Taramayı iptal edelim mi?
         </h2>
 
         <p className="mt-3 text-[14px] font-medium leading-6 text-[#aab3c5]">
-          Bu işlem devam eden analiz sürecini durdurur. Mevcut ilerleme
-          kaydedilmiş gibi gösterilir ama yeni rapor oluşturulmaz.
+          Bu işlem canlı izleme ekranındaki polling sürecini durdurur. İptal
+          endpointi eklenmediği için veritabanındaki kayıt otomatik silinmez.
         </p>
 
         <div className="mt-7 flex justify-end gap-3">
           <button
             type="button"
             onClick={onClose}
-            className="h-10 rounded-md border border-white/[0.12] px-5 text-[13px] font-extrabold text-[#d8deeb] transition hover:bg-white/[0.06]"
+            className="h-10 rounded-md border border-white/12 px-5 text-[13px] font-extrabold text-[#d8deeb] transition hover:bg-white/6"
           >
             Vazgeç
           </button>
@@ -1073,9 +1263,9 @@ function FindingModal({
     >
       <div
         onClick={(event) => event.stopPropagation()}
-        className="w-full max-w-[560px] cursor-default rounded-2xl border border-white/[0.1] bg-[#0d1423] p-6 shadow-2xl"
+        className="w-full max-w-140 cursor-default rounded-2xl border border-white/10 bg-[#0d1423] p-6 shadow-2xl"
       >
-        <div className="flex items-start justify-between gap-5 border-b border-white/[0.08] pb-5">
+        <div className="flex items-start justify-between gap-5 border-b border-white/8 pb-5">
           <div>
             <p className="text-[12px] font-extrabold uppercase tracking-[0.08em] text-[#aebcff]">
               Bulgu Detayı
@@ -1093,14 +1283,14 @@ function FindingModal({
         </div>
 
         <div className="mt-6 space-y-4">
-          <div className="rounded-lg border border-white/[0.08] bg-[#080d18]/70 p-4">
+          <div className="rounded-lg border border-white/8 bg-[#080d18]/70 p-4">
             <p className="text-[13px] font-bold text-[#aab3c5]">Açıklama</p>
             <p className="mt-2 text-[14px] font-medium leading-6 text-[#dce2ef]">
               {item.desc}
             </p>
           </div>
 
-          <div className="rounded-lg border border-white/[0.08] bg-[#080d18]/70 p-4">
+          <div className="rounded-lg border border-white/8 bg-[#080d18]/70 p-4">
             <p className="text-[13px] font-bold text-[#aab3c5]">
               Çözüm Önerisi
             </p>
@@ -1114,12 +1304,634 @@ function FindingModal({
   );
 }
 
+function normalizeScanPayload(
+  payload: ScanApiPayload,
+  fallbackScanId: string,
+): NormalizedScan {
+  const scan = getScanRecord(payload);
+
+  const id = getString(scan.id) ?? getString(scan.scanId) ?? fallbackScanId;
+
+  const url =
+    getString(scan.url) ??
+    getString(scan.targetUrl) ??
+    getString(scan.scanUrl) ??
+    getString(scan.websiteUrl) ??
+    "https://orneksite.com";
+
+  const status = normalizeScanStatus(getString(scan.status));
+  const progress = clampNumber(
+    getNumber(scan.progress) ??
+      getNumber(scan.percentage) ??
+      (status === "completed" ? 100 : 0),
+    0,
+    100,
+  );
+
+  const logs = normalizeLogs(
+    readArray(scan.logs) ??
+      readArray(scan.events) ??
+      readArray(scan.timeline) ??
+      [],
+    status,
+  );
+
+  const findings = normalizeFindings(
+    readArray(scan.findings) ??
+      readArray(scan.issues) ??
+      readArray(scan.problems) ??
+      [],
+  );
+
+  const apiModules =
+    readArray(scan.modules) ??
+    readArray(scan.moduleProgress) ??
+    readArray(scan.checks) ??
+    [];
+
+  const selectedModules =
+    readArray(scan.selectedModules) ??
+    readArray(scan.analysisModules) ??
+    readArray(scan.enabledModules) ??
+    [];
+
+  const modules = buildModuleRows({
+    apiModules,
+    selectedModules,
+    progress,
+    status,
+  });
+
+  const totalTests =
+    getNumber(scan.totalTests) ?? getNumber(scan.testsTotal) ?? 262;
+
+  const completedTests =
+    getNumber(scan.completedTests) ??
+    getNumber(scan.testsCompleted) ??
+    Math.round((progress / 100) * totalTests);
+
+  const startedAtMs =
+    getDateMs(scan.startedAt) ??
+    getDateMs(scan.createdAt) ??
+    getDateMs(scan.created_at) ??
+    null;
+
+  return {
+    id,
+    url,
+    status,
+    progress,
+    logs,
+    findings,
+    modules,
+    startedAtMs,
+    totalTests,
+    completedTests: clampNumber(completedTests, 0, totalTests),
+    scopeText: buildScopeText(scan),
+    devicesText: buildDevicesText(scan),
+    moduleSummary: buildModuleSummary(modules),
+  };
+}
+
+function getScanRecord(payload: ScanApiPayload): Record<string, unknown> {
+  if (payload.scan && typeof payload.scan === "object") return payload.scan;
+  if (payload.data && typeof payload.data === "object") return payload.data;
+
+  return payload;
+}
+
+function normalizeLogs(rawLogs: unknown[], status: ScanStatus): LogItem[] {
+  if (!rawLogs.length) {
+    return [
+      {
+        time: getCurrentTime(),
+        icon:
+          status === "completed"
+            ? "chart"
+            : status === "failed"
+              ? "alert"
+              : "refresh",
+        text:
+          status === "completed"
+            ? "Tarama tamamlandı. Rapor sayfasına yönlendiriliyor."
+            : status === "failed"
+              ? "Tarama sırasında hata oluştu."
+              : "Tarama çalışıyor. Canlı loglar bekleniyor.",
+        active: true,
+        success: status === "completed",
+        warning: status === "failed",
+      },
+    ];
+  }
+
+  const normalized = rawLogs.map((item, index) => {
+    if (typeof item === "string") {
+      return {
+        time: getCurrentTime(),
+        icon: "refresh",
+        text: item,
+        active: index === rawLogs.length - 1,
+      };
+    }
+
+    const record = toRecord(item);
+
+    const level =
+      getString(record.level) ??
+      getString(record.status) ??
+      getString(record.type) ??
+      "";
+
+    const text =
+      getString(record.text) ??
+      getString(record.message) ??
+      getString(record.title) ??
+      "Tarama adımı işlendi.";
+
+    const time =
+      getTimeText(record.time) ??
+      getTimeText(record.createdAt) ??
+      getTimeText(record.timestamp) ??
+      getCurrentTime();
+
+    const success =
+      getBoolean(record.success) ??
+      ["success", "completed", "done", "ok"].includes(level.toLowerCase());
+
+    const warning =
+      getBoolean(record.warning) ??
+      ["warning", "warn", "failed", "error"].includes(level.toLowerCase());
+
+    return {
+      time,
+      icon: getString(record.icon) ?? getLogIcon(level, text),
+      text,
+      active: index === rawLogs.length - 1,
+      success,
+      warning,
+    };
+  });
+
+  return normalized.reverse().map((log, index) => ({
+    ...log,
+    active: index === 0,
+  }));
+}
+
+function normalizeFindings(rawFindings: unknown[]): FindingItem[] {
+  return rawFindings.map((item) => {
+    if (typeof item === "string") {
+      return {
+        title: item,
+        desc: "Tarama sırasında tespit edilen bulgu.",
+        level: "Bilgi",
+        tone: "yellow",
+        icon: "info",
+        solution: "Detaylı rapor ekranında ilgili bulgunun çözüm adımlarını inceleyin.",
+      };
+    }
+
+    const record = toRecord(item);
+
+    const severity =
+      getString(record.severity) ??
+      getString(record.level) ??
+      getString(record.priority) ??
+      "info";
+
+    const tone = getFindingTone(severity);
+
+    return {
+      title:
+        getString(record.title) ??
+        getString(record.name) ??
+        getString(record.rule) ??
+        "Tespit Edilen Bulgu",
+      desc:
+        getString(record.desc) ??
+        getString(record.description) ??
+        getString(record.message) ??
+        "Tarama sırasında iyileştirme gerektiren bir alan tespit edildi.",
+      level: getFindingLevel(severity),
+      tone,
+      icon: tone === "red" ? "alert" : tone === "orange" ? "warning" : "info",
+      solution:
+        getString(record.solution) ??
+        getString(record.recommendation) ??
+        getString(record.fix) ??
+        "Bu bulguyu rapor ekranında detaylı inceleyip önerilen aksiyonları uygulayın.",
+    };
+  });
+}
+
+function buildModuleRows({
+  apiModules,
+  selectedModules,
+  progress,
+  status,
+}: {
+  apiModules: unknown[];
+  selectedModules: unknown[];
+  progress: number;
+  status: ScanStatus;
+}): ModuleProgressItem[] {
+  const hasStructuredModules = apiModules.length > 0;
+
+  const baseModules = hasStructuredModules
+    ? apiModules
+    : selectedModules.length > 0
+      ? selectedModules
+      : defaultModuleTitles;
+
+  const total = Math.max(1, baseModules.length);
+  const completedCount =
+    status === "completed" ? total : Math.floor((progress / 100) * total);
+
+  return baseModules.map((item, index) => {
+    if (typeof item === "string") {
+      const title = normalizeModuleTitle(item);
+      const calculatedStatus = getCalculatedModuleStatus({
+        index,
+        completedCount,
+        globalStatus: status,
+      });
+
+      return {
+        title,
+        icon: getModuleIcon(title),
+        status: calculatedStatus,
+        active: calculatedStatus === "running",
+      };
+    }
+
+    const record = toRecord(item);
+    const rawTitle =
+      getString(record.title) ??
+      getString(record.name) ??
+      getString(record.label) ??
+      getString(record.key) ??
+      `Modül ${index + 1}`;
+
+    const title = normalizeModuleTitle(rawTitle);
+    const moduleStatus =
+      normalizeModuleStatus(getString(record.status)) ??
+      getCalculatedModuleStatus({
+        index,
+        completedCount,
+        globalStatus: status,
+      });
+
+    return {
+      title,
+      icon: getString(record.icon) ?? getModuleIcon(title),
+      status: moduleStatus,
+      active: moduleStatus === "running",
+    };
+  });
+}
+
+function getCalculatedModuleStatus({
+  index,
+  completedCount,
+  globalStatus,
+}: {
+  index: number;
+  completedCount: number;
+  globalStatus: ScanStatus;
+}): ModuleStatus {
+  if (globalStatus === "completed") return "completed";
+  if (globalStatus === "failed") return index < completedCount ? "completed" : "failed";
+  if (globalStatus === "cancelled") {
+    return index < completedCount ? "completed" : "cancelled";
+  }
+
+  if (index < completedCount) return "completed";
+  if (index === completedCount) return "running";
+
+  return "queued";
+}
+
+function buildScopeText(scan: Record<string, unknown>) {
+  const scopeType =
+    getString(scan.scopeType) ??
+    getString(scan.scope) ??
+    getString(scan.pageScope) ??
+    "Standart";
+
+  const crawlDepth =
+    getString(scan.crawlDepth) ??
+    getString(scan.depth) ??
+    getString(scan.crawl_depth);
+
+  if (!crawlDepth) return scopeType;
+
+  return `${scopeType} / Derinlik: ${crawlDepth}`;
+}
+
+function buildDevicesText(scan: Record<string, unknown>) {
+  const viewports =
+    readArray(scan.viewports) ??
+    readArray(scan.screenSizes) ??
+    readArray(scan.devices) ??
+    [];
+
+  if (!viewports.length) return "Seçilen ekran boyutları";
+
+  return viewports
+    .map((item) => {
+      if (typeof item === "string") return item;
+
+      const record = toRecord(item);
+
+      return (
+        getString(record.label) ??
+        getString(record.name) ??
+        getString(record.value) ??
+        ""
+      );
+    })
+    .filter(Boolean)
+    .join(", ");
+}
+
+function buildModuleSummary(modules: ModuleProgressItem[]) {
+  if (!modules.length) return "Modül bilgisi yok";
+
+  const firstModules = modules.slice(0, 4).map((item) => item.title).join(", ");
+
+  return modules.length > 4
+    ? `${firstModules} +${modules.length - 4} modül`
+    : firstModules;
+}
+
+function normalizeScanStatus(value?: string | null): ScanStatus {
+  const status = value?.toLowerCase();
+
+  if (status === "queued" || status === "pending" || status === "waiting") {
+    return "queued";
+  }
+
+  if (status === "completed" || status === "done" || status === "success") {
+    return "completed";
+  }
+
+  if (status === "cancelled" || status === "canceled") {
+    return "cancelled";
+  }
+
+  if (status === "failed" || status === "error") {
+    return "failed";
+  }
+
+  return "running";
+}
+
+function normalizeModuleStatus(value?: string | null): ModuleStatus | null {
+  if (!value) return null;
+
+  const status = value.toLowerCase();
+
+  if (status === "queued" || status === "pending" || status === "waiting") {
+    return "queued";
+  }
+
+  if (status === "running" || status === "active" || status === "processing") {
+    return "running";
+  }
+
+  if (status === "completed" || status === "done" || status === "success") {
+    return "completed";
+  }
+
+  if (status === "cancelled" || status === "canceled") {
+    return "cancelled";
+  }
+
+  if (status === "failed" || status === "error") {
+    return "failed";
+  }
+
+  return null;
+}
+
+function normalizeModuleTitle(value: string) {
+  const key = value.toLowerCase();
+
+  if (key === "performance" || key.includes("performans")) return "Performans";
+  if (key === "responsive" || key.includes("responsive")) return "Responsive QA";
+  if (key === "seo" || key.includes("seo")) return "SEO";
+  if (
+    key === "accessibility" ||
+    key.includes("erişilebilirlik") ||
+    key.includes("wcag")
+  ) {
+    return "Erişilebilirlik";
+  }
+  if (key === "interaction" || key.includes("interaction")) {
+    return "Interaction QA";
+  }
+  if (key === "security" || key.includes("security") || key.includes("güvenlik")) {
+    return "Security Basics";
+  }
+  if (key === "visual" || key.includes("görsel") || key.includes("visual")) {
+    return "Görsel QA";
+  }
+  if (key === "forms" || key.includes("form")) return "Form Kontrolleri";
+
+  return value;
+}
+
+function getModuleIcon(title: string) {
+  const key = title.toLowerCase();
+
+  if (key.includes("performans")) return "speed";
+  if (key.includes("responsive")) return "window";
+  if (key.includes("seo")) return "html";
+  if (key.includes("erişilebilirlik")) return "eye";
+  if (key.includes("interaction")) return "scan";
+  if (key.includes("security") || key.includes("güvenlik")) return "lock";
+  if (key.includes("görsel")) return "chart";
+  if (key.includes("form")) return "code";
+
+  return "module";
+}
+
+function getModuleStatusLabel(
+  moduleStatus: ModuleStatus,
+  globalStatus: ScanStatus,
+) {
+  if (moduleStatus === "completed") return "TAMAMLANDI";
+  if (moduleStatus === "running") return "İŞLENİYOR...";
+  if (moduleStatus === "failed") return "HATA";
+  if (moduleStatus === "cancelled") return "DURDURULDU";
+
+  if (globalStatus === "completed") return "TAMAMLANDI";
+  if (globalStatus === "failed") return "HATA";
+  if (globalStatus === "cancelled") return "DURDURULDU";
+
+  return "SIRADA";
+}
+
+function getScanStatusLabel(status: ScanStatus) {
+  if (status === "completed") return "Tamamlandı";
+  if (status === "cancelled") return "İptal Edildi";
+  if (status === "failed") return "Hata";
+  if (status === "queued") return "Sırada";
+
+  return "Devam Ediyor";
+}
+
+function getRemainingTimeText({
+  status,
+  progress,
+  elapsedSeconds,
+}: {
+  status: ScanStatus;
+  progress: number;
+  elapsedSeconds: number;
+}) {
+  if (status === "completed") return "00:00 dk";
+  if (status === "cancelled") return "Durduruldu";
+  if (status === "failed") return "Hata";
+  if (progress <= 3 || elapsedSeconds <= 0) return "Hesaplanıyor";
+
+  const remainingSeconds = Math.max(
+    0,
+    Math.round((elapsedSeconds / progress) * (100 - progress)),
+  );
+
+  return `${formatElapsed(remainingSeconds)} dk`;
+}
+
+function getFindingTone(severity: string): FindingItem["tone"] {
+  const level = severity.toLowerCase();
+
+  if (
+    level.includes("critical") ||
+    level.includes("high") ||
+    level.includes("kritik") ||
+    level.includes("yüksek")
+  ) {
+    return "red";
+  }
+
+  if (
+    level.includes("medium") ||
+    level.includes("warning") ||
+    level.includes("orta") ||
+    level.includes("uyarı")
+  ) {
+    return "orange";
+  }
+
+  return "yellow";
+}
+
+function getFindingLevel(severity: string) {
+  const level = severity.toLowerCase();
+
+  if (level.includes("critical") || level.includes("kritik")) return "Kritik";
+  if (level.includes("high") || level.includes("yüksek")) return "Yüksek";
+  if (level.includes("medium") || level.includes("orta")) return "Orta";
+  if (level.includes("low") || level.includes("düşük")) return "Düşük";
+
+  return "Bilgi";
+}
+
+function getLogIcon(level: string, text: string) {
+  const value = `${level} ${text}`.toLowerCase();
+
+  if (value.includes("error") || value.includes("hata")) return "alert";
+  if (value.includes("warning") || value.includes("uyarı")) return "warning";
+  if (value.includes("performance") || value.includes("lcp")) return "speed";
+  if (value.includes("seo") || value.includes("meta")) return "html";
+  if (value.includes("server") || value.includes("dns")) return "server";
+  if (value.includes("completed") || value.includes("tamamlandı")) return "check";
+
+  return "refresh";
+}
+
+function readArray(value: unknown): unknown[] | null {
+  if (Array.isArray(value)) return value;
+
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+
+      return Array.isArray(parsed) ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+}
+
+function toRecord(value: unknown): Record<string, unknown> {
+  if (value && typeof value === "object") return value as Record<string, unknown>;
+
+  return {};
+}
+
+function getString(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value : null;
+}
+
+function getNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+
+  if (typeof value === "string") {
+    const parsed = Number(value);
+
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+}
+
+function getBoolean(value: unknown): boolean | null {
+  if (typeof value === "boolean") return value;
+
+  return null;
+}
+
+function getDateMs(value: unknown): number | null {
+  if (typeof value !== "string" && typeof value !== "number") return null;
+
+  const date = new Date(value);
+  const time = date.getTime();
+
+  return Number.isFinite(time) ? time : null;
+}
+
+function getTimeText(value: unknown): string | null {
+  if (typeof value === "string" && /^\d{2}:\d{2}:\d{2}$/.test(value)) {
+    return value;
+  }
+
+  const time = getDateMs(value);
+
+  return time ? formatClock(time) : null;
+}
+
+function clampNumber(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, Math.round(value)));
+}
+
 function getCurrentTime() {
   return new Intl.DateTimeFormat("tr-TR", {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
   }).format(new Date());
+}
+
+function formatClock(value: number) {
+  return new Intl.DateTimeFormat("tr-TR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).format(new Date(value));
 }
 
 function formatElapsed(totalSeconds: number) {

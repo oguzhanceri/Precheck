@@ -156,7 +156,7 @@ export default function PricingPage() {
 
   return (
     <main className="min-h-screen overflow-hidden bg-[#050916] text-[#e8ebf5]">
-      <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.035)_1px,transparent_1px)] bg-[size:32px_32px]" />
+      <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.035)_1px,transparent_1px)] bg-size-[32px_32px]" />
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_50%_8%,rgba(47,109,246,0.18),transparent_32%),linear-gradient(180deg,rgba(8,13,24,0.1),#050916_84%)]" />
 
       <div className="relative z-10">
@@ -166,28 +166,28 @@ export default function PricingPage() {
           onMobileMenuClose={() => setIsMobileMenuOpen(false)}
         />
 
-        <section className="mx-auto max-w-[1180px] px-5 pb-16 pt-14 text-center sm:px-6 md:pb-20 md:pt-20">
-          <div className="mx-auto inline-flex rounded-full border border-white/[0.09] bg-white/[0.09] px-4 py-1.5 text-[11px] font-extrabold tracking-[0.05em] text-[#b7c3dc] sm:text-[12px]">
+        <section className="mx-auto max-w-295 px-5 pb-16 pt-14 text-center sm:px-6 md:pb-20 md:pt-20">
+          <div className="mx-auto inline-flex rounded-full border border-white/9 bg-white/9 px-4 py-1.5 text-[11px] font-extrabold tracking-wider text-[#b7c3dc] sm:text-[12px]">
             Esnek. Şeffaf. Ölçeklenebilir.
           </div>
 
-          <h1 className="mx-auto mt-5 max-w-[760px] text-[38px] font-extrabold leading-[1.08] tracking-[-0.06em] text-[#e7eaf5] sm:text-[48px] md:text-[60px]">
+          <h1 className="mx-auto mt-5 max-w-190 text-[38px] font-extrabold leading-[1.08] tracking-[-0.06em] text-[#e7eaf5] sm:text-[48px] md:text-[60px]">
             İhtiyacınıza göre ölçeklenen fiyatlandırma
           </h1>
 
-          <p className="mx-auto mt-6 max-w-[720px] text-[15px] font-medium leading-7 text-[#b8bfce] sm:text-[17px] sm:leading-8">
+          <p className="mx-auto mt-6 max-w-180 text-[15px] font-medium leading-7 text-[#b8bfce] sm:text-[17px] sm:leading-8">
             İster bireysel projeleriniz için ister kurumsal ekipleriniz için kullanın.
             Sürpriz ücretler olmadan, sadece kullandığınız kadar ödeyin.
           </p>
 
           <div className="mt-12 flex justify-center md:mt-16">
-            <div className="inline-flex rounded-full border border-white/[0.08] bg-white/[0.16] p-1">
+            <div className="inline-flex rounded-full border border-white/8 bg-white/16 p-1">
               <button
                 type="button"
                 onClick={() => setBilling("monthly")}
                 className={`h-9 cursor-pointer rounded-full px-8 text-[13px] font-bold transition sm:px-12 ${
                   billing === "monthly"
-                    ? "bg-white/[0.12] text-white"
+                    ? "bg-white/12 text-white"
                     : "text-[#c6cddb] hover:text-white"
                 }`}
               >
@@ -199,7 +199,7 @@ export default function PricingPage() {
                 onClick={() => setBilling("yearly")}
                 className={`flex h-9 cursor-pointer items-center gap-2 rounded-full px-6 text-[13px] font-bold transition sm:px-8 ${
                   billing === "yearly"
-                    ? "bg-white/[0.12] text-white"
+                    ? "bg-white/12 text-white"
                     : "text-[#c6cddb] hover:text-white"
                 }`}
               >
@@ -223,20 +223,20 @@ export default function PricingPage() {
           </div>
         </section>
 
-        <section className="mx-auto max-w-[1180px] px-5 py-12 sm:px-6 md:py-16">
+        <section className="mx-auto max-w-295 px-5 py-12 sm:px-6 md:py-16">
           <div className="text-center">
-            <span className="rounded-full border border-white/[0.08] bg-white/[0.06] px-4 py-1 text-[12px] font-extrabold text-[#aebcff]">
+            <span className="rounded-full border border-white/8 bg-white/6 px-4 py-1 text-[12px] font-extrabold text-[#aebcff]">
               Karşılaştırma
             </span>
-            <h2 className="mt-4 text-[28px] font-extrabold tracking-[-0.05em] text-[#e7eaf5] sm:text-[36px]">
+            <h2 className="mt-4 text-[28px] font-extrabold tracking-tighter text-[#e7eaf5] sm:text-[36px]">
               Planları detaylı karşılaştır
             </h2>
           </div>
 
-          <div className="mt-10 overflow-x-auto rounded-xl border border-white/[0.09] bg-[#0d1423]/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-            <table className="w-full min-w-[760px] border-collapse">
+          <div className="mt-10 overflow-x-auto rounded-xl border border-white/9 bg-[#0d1423]/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+            <table className="w-full min-w-190 border-collapse">
               <thead>
-                <tr className="bg-white/[0.055] text-left text-[15px] font-bold text-[#c5ccda]">
+                <tr className="bg-white/5.5 text-left text-[15px] font-bold text-[#c5ccda]">
                   <th className="px-6 py-6">Özellik</th>
                   <th className="px-6 py-6 text-center">Starter</th>
                   <th className="px-6 py-6 text-center text-[#b8c7ff]">Pro</th>
@@ -247,7 +247,7 @@ export default function PricingPage() {
                 {comparisonRows.map(([feature, starter, pro, agency]) => (
                   <tr
                     key={feature}
-                    className="border-t border-white/[0.055] text-[14px] font-medium text-[#b8bfce]"
+                    className="border-t border-white/5.5 text-[14px] font-medium text-[#b8bfce]"
                   >
                     <td className="px-6 py-5 font-bold text-[#d8deeb]">{feature}</td>
                     <td className="px-6 py-5 text-center">{renderValue(starter)}</td>
@@ -262,12 +262,12 @@ export default function PricingPage() {
           </div>
         </section>
 
-        <section className="mx-auto max-w-[920px] px-5 py-12 sm:px-6 md:py-16">
+        <section className="mx-auto max-w-230 px-5 py-12 sm:px-6 md:py-16">
           <div className="text-center">
-            <span className="rounded-full border border-white/[0.08] bg-white/[0.06] px-4 py-1 text-[12px] font-extrabold text-[#aebcff]">
+            <span className="rounded-full border border-white/8 bg-white/6 px-4 py-1 text-[12px] font-extrabold text-[#aebcff]">
               SSS
             </span>
-            <h2 className="mt-4 text-[28px] font-extrabold tracking-[-0.05em] text-[#e7eaf5] sm:text-[36px]">
+            <h2 className="mt-4 text-[28px] font-extrabold tracking-tighter text-[#e7eaf5] sm:text-[36px]">
               Sıkça Sorulan Sorular
             </h2>
           </div>
@@ -281,8 +281,8 @@ export default function PricingPage() {
                   key={faq.q}
                   className={`overflow-hidden rounded-lg border bg-[#0d1423]/90 transition duration-500 ease-out ${
                     isOpen
-                      ? "border-white/[0.18] shadow-[0_18px_45px_rgba(0,0,0,0.18)]"
-                      : "border-white/[0.09]"
+                      ? "border-white/18 shadow-[0_18px_45px_rgba(0,0,0,0.18)]"
+                      : "border-white/9"
                   }`}
                 >
                   <button
@@ -317,13 +317,13 @@ export default function PricingPage() {
           </div>
         </section>
 
-        <section className="mx-auto max-w-[1180px] px-5 py-14 sm:px-6 md:py-20">
-          <div className="rounded-2xl border border-white/[0.1] bg-[#172030]/95 px-6 py-12 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:px-8 md:py-16">
-            <h2 className="text-[28px] font-extrabold tracking-[-0.05em] text-[#e3e7f2] sm:text-[36px]">
+        <section className="mx-auto max-w-295 px-5 py-14 sm:px-6 md:py-20">
+          <div className="rounded-2xl border border-white/10 bg-[#172030]/95 px-6 py-12 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:px-8 md:py-16">
+            <h2 className="text-[28px] font-extrabold tracking-tighter text-[#e3e7f2] sm:text-[36px]">
               Hemen Precheck AI ile tanışın
             </h2>
 
-            <p className="mx-auto mt-5 max-w-[640px] text-[16px] font-medium leading-7 text-[#aeb6c8] sm:text-[18px]">
+            <p className="mx-auto mt-5 max-w-160 text-[16px] font-medium leading-7 text-[#aeb6c8] sm:text-[18px]">
               14 gün boyunca tüm özellikleri ücretsiz deneyin. Kredi kartı gerekmez.
             </p>
 
@@ -331,7 +331,7 @@ export default function PricingPage() {
               <button
                 type="button"
                 onClick={() => router.push("/auth")}
-                className="inline-flex h-[52px] cursor-pointer items-center justify-center rounded-lg bg-[#2f6df6] px-10 text-[16px] font-bold text-white shadow-[0_16px_38px_rgba(47,109,246,0.3)] transition hover:bg-[#3b7aff] sm:h-14 sm:px-16 sm:text-[18px]"
+                className="inline-flex h-13 cursor-pointer items-center justify-center rounded-lg bg-[#2f6df6] px-10 text-[16px] font-bold text-white shadow-[0_16px_38px_rgba(47,109,246,0.3)] transition hover:bg-[#3b7aff] sm:h-14 sm:px-16 sm:text-[18px]"
               >
                 Ücretsiz Dene
               </button>
@@ -339,7 +339,7 @@ export default function PricingPage() {
               <button
                 type="button"
                 onClick={() => router.push("/report")}
-                className="inline-flex h-[52px] cursor-pointer items-center justify-center rounded-lg border border-white/[0.08] bg-[#0d1423] px-10 text-[16px] font-bold text-[#cbd2df] transition hover:border-white/20 hover:bg-white/[0.06] sm:h-14 sm:px-16 sm:text-[18px]"
+                className="inline-flex h-13 cursor-pointer items-center justify-center rounded-lg border border-white/8 bg-[#0d1423] px-10 text-[16px] font-bold text-[#cbd2df] transition hover:border-white/20 hover:bg-white/6 sm:h-14 sm:px-16 sm:text-[18px]"
               >
                 Demo Raporu İncele
               </button>
@@ -363,7 +363,7 @@ export default function PricingPage() {
             onClose={() => setSelectedPlan(null)}
           />
 
-          <div className="mt-6 rounded-xl border border-white/[0.08] bg-[#080d18]/70 p-5">
+          <div className="mt-6 rounded-xl border border-white/8 bg-[#080d18]/70 p-5">
             <p className="text-[14px] font-medium leading-6 text-[#aab3c5]">
               Seçilen plan:
             </p>
@@ -397,7 +397,7 @@ export default function PricingPage() {
             <button
               type="button"
               onClick={() => setSelectedPlan(null)}
-              className="h-10 cursor-pointer rounded-md border border-white/[0.12] px-5 text-[13px] font-extrabold text-[#d8deeb] transition hover:bg-white/[0.06]"
+              className="h-10 cursor-pointer rounded-md border border-white/12 px-5 text-[13px] font-extrabold text-[#d8deeb] transition hover:bg-white/6"
             >
               Vazgeç
             </button>
@@ -427,7 +427,7 @@ export default function PricingPage() {
 
             <textarea
               placeholder="İhtiyacınızı kısaca anlatın..."
-              className="h-28 w-full resize-none rounded-lg border border-white/[0.1] bg-[#080d18] px-4 py-3 text-[14px] font-medium text-white outline-none placeholder:text-[#697386] focus:border-[#8ea1e8]"
+              className="h-28 w-full resize-none rounded-lg border border-white/10 bg-[#080d18] px-4 py-3 text-[14px] font-medium text-white outline-none placeholder:text-[#697386] focus:border-[#8ea1e8]"
             />
 
             <button
@@ -445,7 +445,7 @@ export default function PricingPage() {
       )}
 
       {toast && (
-        <div className="fixed bottom-5 right-5 z-50 rounded-lg border border-white/[0.1] bg-[#0d1423] px-4 py-3 text-[13px] font-bold text-[#dce2ef] shadow-2xl">
+        <div className="fixed bottom-5 right-5 z-50 rounded-lg border border-white/10 bg-[#0d1423] px-4 py-3 text-[13px] font-bold text-[#dce2ef] shadow-2xl">
           {toast}
         </div>
       )}
@@ -464,7 +464,7 @@ function Header({
 }) {
   return (
     <header className="sticky top-0 z-30 border-b border-white/[0.07] bg-[#0f121d]/92 backdrop-blur-xl">
-      <div className="mx-auto flex h-[70px] max-w-[1180px] items-center justify-between px-5 sm:px-6 md:h-[76px]">
+      <div className="mx-auto flex h-17.5 max-w-295 items-center justify-between px-5 sm:px-6 md:h-19">
         <Link
           href="/"
           className="cursor-pointer text-[16px] font-extrabold text-[#c7d4ff]"
@@ -483,7 +483,7 @@ function Header({
             >
               {item.label}
               {item.active && (
-                <span className="absolute -bottom-[26px] left-0 h-px w-full bg-[#b8c7ff]" />
+                <span className="absolute -bottom-6.5 left-0 h-px w-full bg-[#b8c7ff]" />
               )}
             </Link>
           ))}
@@ -508,7 +508,7 @@ function Header({
         <button
           type="button"
           onClick={onMobileMenuToggle}
-          className="grid size-10 cursor-pointer place-items-center rounded-lg border border-white/[0.1] text-[#dce5ff] md:hidden"
+          className="grid size-10 cursor-pointer place-items-center rounded-lg border border-white/10 text-[#dce5ff] md:hidden"
         >
           <Icon name={isMobileMenuOpen ? "x" : "menu"} className="size-5" />
         </button>
@@ -524,7 +524,7 @@ function Header({
                 onClick={onMobileMenuClose}
                 className={`flex h-10 cursor-pointer items-center rounded-lg px-3 text-[14px] font-bold ${
                   item.active
-                    ? "bg-white/[0.08] text-[#dce5ff]"
+                    ? "bg-white/8 text-[#dce5ff]"
                     : "text-[#aeb4c2]"
                 }`}
               >
@@ -536,7 +536,7 @@ function Header({
               <Link
                 href="/auth"
                 onClick={onMobileMenuClose}
-                className="flex h-10 cursor-pointer items-center justify-center rounded-lg border border-white/[0.1] text-[14px] font-bold text-[#c7cdd9]"
+                className="flex h-10 cursor-pointer items-center justify-center rounded-lg border border-white/10 text-[14px] font-bold text-[#c7cdd9]"
               >
                 Giriş Yap
               </Link>
@@ -570,10 +570,10 @@ function PlanCard({
 
   return (
     <div
-      className={`relative flex min-h-[560px] flex-col rounded-xl border p-7 transition hover:-translate-y-1 hover:border-white/20 sm:p-9 lg:min-h-[630px] ${
+      className={`relative flex min-h-140 flex-col rounded-xl border p-7 transition hover:-translate-y-1 hover:border-white/20 sm:p-9 lg:min-h-157.5 ${
         plan.featured
           ? "border-[#596c9e] bg-[#182131] shadow-[0_24px_80px_rgba(47,109,246,0.15),inset_0_1px_0_rgba(255,255,255,0.04)] lg:-mt-5"
-          : "border-white/[0.09] bg-[#0d1423]/92"
+          : "border-white/9 bg-[#0d1423]/92"
       }`}
     >
       {plan.featured && (
@@ -586,7 +586,7 @@ function PlanCard({
         {plan.name}
       </h3>
 
-      <p className="mt-3 min-h-[44px] text-[14px] font-medium leading-5 text-[#aab2c2]">
+      <p className="mt-3 min-h-11 text-[14px] font-medium leading-5 text-[#aab2c2]">
         {plan.desc}
       </p>
 
@@ -617,7 +617,7 @@ function PlanCard({
         className={`mt-auto inline-flex h-14 cursor-pointer items-center justify-center rounded-lg text-[16px] font-bold transition ${
           plan.featured
             ? "bg-[#2f6df6] text-white shadow-[0_14px_34px_rgba(47,109,246,0.28)] hover:bg-[#3b7aff]"
-            : "border border-white/[0.1] bg-[#080d18]/50 text-[#cbd2df] hover:border-white/20 hover:bg-white/[0.06]"
+            : "border border-white/10 bg-[#080d18]/50 text-[#cbd2df] hover:border-white/20 hover:bg-white/6"
         }`}
       >
         {plan.button}
@@ -628,11 +628,11 @@ function PlanCard({
 
 function Footer() {
   return (
-    <footer className="border-t border-white/[0.06] bg-[#090e18]">
-      <div className="mx-auto grid max-w-[1180px] gap-10 px-5 py-14 sm:px-6 md:grid-cols-[1.5fr_1fr_1fr_1fr]">
+    <footer className="border-t border-white/6 bg-[#090e18]">
+      <div className="mx-auto grid max-w-295 gap-10 px-5 py-14 sm:px-6 md:grid-cols-[1.5fr_1fr_1fr_1fr]">
         <div>
           <h2 className="text-[16px] font-extrabold text-[#c7d4ff]">Precheck AI</h2>
-          <p className="mt-5 max-w-[360px] text-[14px] font-medium leading-7 text-[#a2abbc]">
+          <p className="mt-5 max-w-90 text-[14px] font-medium leading-7 text-[#a2abbc]">
             Modern web uygulamaları için akıllı test ve izleme platformu.
             Hataları kullanıcılarınızdan önce bulun.
           </p>
@@ -669,7 +669,7 @@ function Footer() {
         />
       </div>
 
-      <div className="mx-auto flex max-w-[1180px] flex-col gap-4 border-t border-white/[0.04] px-5 py-8 text-[13px] font-medium text-[#8993a6] sm:flex-row sm:items-center sm:justify-between sm:px-6">
+      <div className="mx-auto flex max-w-295 flex-col gap-4 border-t border-white/4 px-5 py-8 text-[13px] font-medium text-[#8993a6] sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <span>© 2025 Precheck AI. Tüm hakları saklıdır.</span>
         <div className="flex items-center gap-5">
           <Icon name="globe" className="size-5" />
@@ -719,7 +719,7 @@ function Input({
       </span>
       <input
         placeholder={placeholder}
-        className="h-11 w-full cursor-text rounded-lg border border-white/[0.1] bg-[#080d18] px-4 text-[14px] font-medium text-white outline-none placeholder:text-[#697386] focus:border-[#8ea1e8]"
+        className="h-11 w-full cursor-text rounded-lg border border-white/10 bg-[#080d18] px-4 text-[14px] font-medium text-white outline-none placeholder:text-[#697386] focus:border-[#8ea1e8]"
       />
     </label>
   );
@@ -741,7 +741,7 @@ function Modal({
     >
       <div
         onClick={(event) => event.stopPropagation()}
-        className={`w-full ${maxWidth} cursor-default rounded-2xl border border-white/[0.1] bg-[#0d1423] p-6 shadow-2xl`}
+        className={`w-full ${maxWidth} cursor-default rounded-2xl border border-white/10 bg-[#0d1423] p-6 shadow-2xl`}
       >
         {children}
       </div>
@@ -757,7 +757,7 @@ function ModalHeader({
   onClose: () => void;
 }) {
   return (
-    <div className="flex items-start justify-between gap-5 border-b border-white/[0.08] pb-5">
+    <div className="flex items-start justify-between gap-5 border-b border-white/8 pb-5">
       <h2 className="text-[22px] font-extrabold">{title}</h2>
       <button
         type="button"

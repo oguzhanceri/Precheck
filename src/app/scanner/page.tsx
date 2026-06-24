@@ -45,9 +45,54 @@ const pageScopeOptions: PageScopeOption[] = [
 ];
 
 const deviceOptions = [
-  { value: "desktop", title: "Masaüstü", desc: "1440px+", icon: "desktop" },
-  { value: "tablet", title: "Tablet", desc: "768px - 1439px", icon: "tablet" },
-  { value: "mobile", title: "Mobil", desc: "320px - 767px", icon: "mobile" },
+  {
+    value: "mobile-320",
+    title: "Mobil XS",
+    desc: "320px - 479px",
+    icon: "mobile",
+  },
+  {
+    value: "mobile-480",
+    title: "Mobil",
+    desc: "480px - 767px",
+    icon: "mobile",
+  },
+  {
+    value: "tablet-768",
+    title: "Tablet",
+    desc: "768px - 1023px",
+    icon: "tablet",
+  },
+  {
+    value: "tablet-1024",
+    title: "Tablet Yatay",
+    desc: "1024px - 1279px",
+    icon: "tablet",
+  },
+  {
+    value: "desktop-1280",
+    title: "Desktop",
+    desc: "1280px - 1439px",
+    icon: "desktop",
+  },
+  {
+    value: "laptop-1440",
+    title: "Laptop",
+    desc: "1440px - 1679px",
+    icon: "desktop",
+  },
+  {
+    value: "wide-1680",
+    title: "Geniş Ekran",
+    desc: "1680px - 1919px",
+    icon: "desktop",
+  },
+  {
+    value: "full-1920",
+    title: "Full HD+",
+    desc: "1920px+",
+    icon: "desktop",
+  },
 ];
 
 const modules = [
@@ -57,8 +102,8 @@ const modules = [
     icon: "speed",
   },
   {
-    title: "Responsive",
-    desc: "Kırılma noktası testleri",
+    title: "Responsive QA",
+    desc: "Taşma, kırılım ve yatay scroll",
     icon: "device",
   },
   {
@@ -68,22 +113,22 @@ const modules = [
   },
   {
     title: "Erişilebilirlik",
-    desc: "WCAG 2.1 uyumluluğu",
+    desc: "WCAG, label, alt ve kontrast",
     icon: "accessibility",
   },
   {
-    title: "UX Akışı",
-    desc: "Tıklama alanı ve etkileşim",
+    title: "Interaction QA",
+    desc: "Buton, modal, toggle ve dropdown",
     icon: "flow",
   },
   {
-    title: "Güvenlik",
-    desc: "SSL, Headers, XSS tespiti",
+    title: "Security Basics",
+    desc: "SSL, headers ve HTTPS kontrolü",
     icon: "shield",
   },
   {
     title: "Görsel QA",
-    desc: "Görsel regresyon, hizalama",
+    desc: "Görsel regresyon ve hizalama",
     icon: "eye",
   },
   {
@@ -144,7 +189,9 @@ export default function ScannerPage() {
   const [scopeType, setScopeType] = useState("sitemap");
   const [crawlDepth, setCrawlDepth] = useState("medium");
   const [selectedPages, setSelectedPages] = useState<string[]>(["home"]);
-  const [selectedDevices, setSelectedDevices] = useState<string[]>(["desktop"]);
+  const [selectedDevices, setSelectedDevices] = useState<string[]>(
+    deviceOptions.map((device) => device.value),
+  );
   const [enabledModules, setEnabledModules] = useState<string[]>(
     modules.map((moduleItem) => moduleItem.title),
   );
@@ -158,6 +205,7 @@ export default function ScannerPage() {
   const [isStartingScan, setIsStartingScan] = useState(false);
 
   const selectedModuleCount = enabledModules.length;
+  const selectedDeviceCount = selectedDevices.length;
   const allPageScopeOptions = [...pageScopeOptions, ...customPages];
 
   const setErrorMessage = (message: string) => {
@@ -236,6 +284,16 @@ export default function ScannerPage() {
     });
   };
 
+  const toggleAllDevices = () => {
+    setSelectedDevices((current) => {
+      if (current.length === deviceOptions.length) {
+        return [];
+      }
+
+      return deviceOptions.map((device) => device.value);
+    });
+  };
+
   const toggleModule = (title: string) => {
     setEnabledModules((current) => {
       if (current.includes(title)) {
@@ -246,77 +304,89 @@ export default function ScannerPage() {
     });
   };
 
-  const handleStartScan = async () => {
-    const cleanedTargetUrl = targetUrl
-      .trim()
-      .replace(/^https?:\/\//, "")
-      .replace(/\/$/, "");
+const handleStartScan = async () => {
+  const cleanedTargetUrl = targetUrl
+    .trim()
+    .replace(/^https?:\/\//, "")
+    .replace(/\/$/, "");
 
-    if (!cleanedTargetUrl) {
-      setErrorMessage("Lütfen analiz etmek istediğiniz alan adını girin.");
-      return;
+  if (!cleanedTargetUrl) {
+    setErrorMessage("Lütfen analiz etmek istediğiniz alan adını girin.");
+    return;
+  }
+
+  if (scopeType === "manual-pages" && !selectedPages.length) {
+    setErrorMessage(
+      "Belirli sayfa taraması için en az bir sayfa seçmelisiniz.",
+    );
+    return;
+  }
+
+  if (!selectedDevices.length) {
+    setErrorMessage("En az bir ekran boyutu seçmelisiniz.");
+    return;
+  }
+
+  if (!enabledModules.length) {
+    setErrorMessage("En az bir analiz modülü seçmelisiniz.");
+    return;
+  }
+
+  const fullUrl = `${protocol}${cleanedTargetUrl}`;
+
+  setIsStartingScan(true);
+  setSuccessMessage(`${fullUrl} için tarama başlatılıyor...`);
+
+  try {
+    const response = await fetch("/api/scans", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        url: fullUrl,
+        scopeType,
+        crawlDepth,
+        selectedPages,
+        selectedDevices,
+        enabledModules,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data?.message ?? "Tarama başlatılamadı.");
     }
 
-    if (scopeType === "manual-pages" && !selectedPages.length) {
-      setErrorMessage(
-        "Belirli sayfa taraması için en az bir sayfa seçmelisiniz.",
-      );
-      return;
+    const nextScanId =
+      data?.scan?.id ??
+      data?.data?.id ??
+      data?.id ??
+      data?.scanId;
+
+    if (!nextScanId) {
+      throw new Error("API scanId döndürmedi.");
     }
 
-    if (!selectedDevices.length) {
-      setErrorMessage("En az bir cihaz kapsamı seçmelisiniz.");
-      return;
-    }
+    window.localStorage.setItem("precheck:lastScanId", nextScanId);
 
-    if (!enabledModules.length) {
-      setErrorMessage("En az bir analiz modülü seçmelisiniz.");
-      return;
-    }
+    router.push(
+      `/live?scanId=${encodeURIComponent(nextScanId)}&url=${encodeURIComponent(fullUrl)}`,
+    );
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Tarama başlatılamadı.";
 
-    const fullUrl = `${protocol}${cleanedTargetUrl}`;
-
-    setIsStartingScan(true);
-    setSuccessMessage(`${fullUrl} için tarama başlatılıyor...`);
-
-    try {
-      const response = await fetch("/api/scans", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          url: fullUrl,
-          scopeType,
-          crawlDepth,
-          selectedPages,
-          selectedDevices,
-          enabledModules,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message ?? "Tarama başlatılamadı.");
-      }
-
-      router.push(
-        `/live?scanId=${data.scan.id}&url=${encodeURIComponent(fullUrl)}`,
-      );
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Tarama başlatılamadı.";
-
-      setErrorMessage(message);
-    } finally {
-      setIsStartingScan(false);
-    }
-  };
+    setErrorMessage(message);
+  } finally {
+    setIsStartingScan(false);
+  }
+};
 
   return (
     <main className="min-h-screen overflow-hidden bg-[#070b15] text-[#e7e9f4]">
-      <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.035)_1px,transparent_1px)] bg-[size:32px_32px]" />
+      <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.035)_1px,transparent_1px)] bg-size-[32px_32px]" />
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_35%_0%,rgba(64,102,255,0.13),transparent_34%),linear-gradient(180deg,rgba(8,13,24,0.1),#070b15_85%)]" />
 
       <div className="relative z-10 flex min-h-screen">
@@ -325,7 +395,7 @@ export default function ScannerPage() {
         <section className="min-w-0 flex-1">
           <Topbar />
 
-          <div className="grid gap-6 px-4 py-6 sm:px-6 lg:py-8 xl:grid-cols-[1fr_220px] 2xl:grid-cols-[1fr_255px]">
+          <div className="grid gap-6 px-4 py-6 sm:px-6 lg:py-8 xl:grid-cols-[1fr_240px] 2xl:grid-cols-[1fr_270px]">
             <div className="min-w-0">
               <div className="flex items-start justify-between gap-5">
                 <div>
@@ -339,25 +409,25 @@ export default function ScannerPage() {
 
                 <Link
                   href="/history"
-                  className="hidden h-10 cursor-pointer items-center gap-2 rounded-md border border-white/[0.12] bg-[#111827]/70 px-4 text-[13px] font-bold text-[#c4cad8] transition hover:border-white/25 hover:bg-white/[0.06] lg:inline-flex"
+                  className="hidden h-10 cursor-pointer items-center gap-2 rounded-md border border-white/12 bg-[#111827]/70 px-4 text-[13px] font-bold text-[#c4cad8] transition hover:border-white/25 hover:bg-white/6 lg:inline-flex"
                 >
                   <Icon name="history" className="size-4" />
                   Geçmiş Taramalar
                 </Link>
               </div>
 
-              <section className="mt-9 rounded-xl border border-white/[0.09] bg-[#0d1423]/88 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] sm:p-6">
+              <section className="mt-9 rounded-2xl border border-white/9 bg-[#0d1423]/88 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] sm:p-6">
                 <div className="grid gap-4 lg:grid-cols-[1fr_220px]">
                   <div>
-                    <label className="mb-2 block text-[11px] font-extrabold uppercase tracking-[0.1em] text-[#9ba5ba]">
+                    <label className="mb-2 block text-[11px] font-extrabold uppercase tracking-widest text-[#9ba5ba]">
                       Hedef URL
                     </label>
 
-                    <div className="flex h-[58px] overflow-hidden rounded-lg border border-white/[0.13] bg-[#080d18]">
+                    <div className="flex h-14.5 overflow-hidden rounded-lg border border-white/13 bg-[#080d18]">
                       <select
                         value={protocol}
                         onChange={(event) => setProtocol(event.target.value)}
-                        className="w-[96px] cursor-pointer appearance-none border-r border-white/[0.08] bg-white/[0.04] px-4 text-[15px] font-bold text-[#c8d1e4] outline-none"
+                        className="w-24 cursor-pointer appearance-none border-r border-white/8 bg-white/4 px-4 text-[15px] font-bold text-[#c8d1e4] outline-none"
                       >
                         {protocolOptions.map((option) => (
                           <option
@@ -398,7 +468,7 @@ export default function ScannerPage() {
                     type="button"
                     onClick={handleStartScan}
                     disabled={isStartingScan}
-                    className="mt-auto h-[58px] cursor-pointer rounded-lg bg-[#2f6df6] px-7 text-[18px] font-extrabold text-white shadow-[0_14px_38px_rgba(47,109,246,0.34)] transition hover:-translate-y-0.5 hover:bg-[#3b7aff] disabled:cursor-not-allowed disabled:opacity-60 sm:text-[20px]"
+                    className="mt-auto h-14.5 cursor-pointer rounded-lg bg-[#2f6df6] px-7 text-[18px] font-extrabold text-white shadow-[0_14px_38px_rgba(47,109,246,0.34)] transition hover:-translate-y-0.5 hover:bg-[#3b7aff] disabled:cursor-not-allowed disabled:opacity-60 sm:text-[20px]"
                   >
                     {isStartingScan ? "Başlatılıyor..." : "Taramayı Başlat"}
                   </button>
@@ -425,10 +495,10 @@ export default function ScannerPage() {
                 </div>
               </section>
 
-              <section className="mt-6 rounded-xl border border-white/[0.09] bg-[#0d1423]/88 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] sm:p-6">
-                <div className="flex flex-col gap-4 border-b border-white/[0.09] pb-5 sm:flex-row sm:items-center sm:justify-between">
-                  <h2 className="flex items-center gap-3 text-[22px] font-extrabold tracking-[-0.04em]">
-                    <Icon name="target" className="size-5 text-[#aebcff]" />
+              <section className="mt-6 rounded-2xl border border-white/9 bg-[#0d1423]/88 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] sm:p-6">
+                <div className="flex flex-col gap-4 border-b border-white/10 pb-6 sm:flex-row sm:items-center sm:justify-between">
+                  <h2 className="flex items-center gap-3 text-[24px] font-extrabold tracking-[-0.04em] text-[#dce2ef] sm:text-[26px]">
+                    <Icon name="target" className="size-7 text-[#aebcff]" />
                     Tarama Kapsamı
                   </h2>
 
@@ -441,7 +511,7 @@ export default function ScannerPage() {
                   </button>
                 </div>
 
-                <div className="mt-6 grid gap-6 md:grid-cols-2">
+                <div className="mt-7 grid gap-6 md:grid-cols-2">
                   <SelectBox
                     label="Kapsam Tipi"
                     value={scopeType}
@@ -458,7 +528,7 @@ export default function ScannerPage() {
                 </div>
 
                 {isAddPageOpen && (
-                  <div className="mt-6 rounded-lg border border-white/[0.1] bg-[#080d18]/80 p-4">
+                  <div className="mt-6 rounded-xl border border-white/10 bg-[#080d18]/80 p-4">
                     <label className="mb-2 block text-[12px] font-bold text-[#aab2c4]">
                       Manuel sayfa path’i ekle
                     </label>
@@ -474,7 +544,7 @@ export default function ScannerPage() {
                           }
                         }}
                         placeholder="/kampanya/yaz-indirimi"
-                        className="h-10 min-w-0 flex-1 cursor-text rounded-md border border-white/[0.12] bg-[#070b15] px-4 text-[14px] font-medium text-white outline-none placeholder:text-[#606a7e] focus:border-[#7f8fca]"
+                        className="h-10 min-w-0 flex-1 cursor-text rounded-md border border-white/12 bg-[#070b15] px-4 text-[14px] font-medium text-white outline-none placeholder:text-[#606a7e] focus:border-[#7f8fca]"
                       />
 
                       <button
@@ -493,17 +563,17 @@ export default function ScannerPage() {
                   </div>
                 )}
 
-                <div className="mt-6 flex flex-wrap gap-3">
+                <div className="mt-7 flex flex-wrap gap-3">
                   {allPageScopeOptions.map((item) => {
                     const isSelected = selectedPages.includes(item.value);
 
                     return (
                       <div
                         key={item.value}
-                        className={`inline-flex h-8 items-center overflow-hidden rounded-full border text-[13px] font-medium transition ${
+                        className={`inline-flex h-9 items-center overflow-hidden rounded-full border text-[13px] font-semibold transition ${
                           isSelected
-                            ? "border-[#7f8fca] bg-[#25304a] text-[#dbe4ff]"
-                            : "border-white/[0.12] bg-white/[0.04] text-[#aab2c4] hover:border-white/25 hover:bg-white/[0.07]"
+                            ? "border-[#aebcff]/70 bg-[#1b2337] text-[#dbe4ff]"
+                            : "border-white/[0.14] bg-[#080d18]/70 text-[#aab2c4] hover:border-white/25 hover:bg-white/[0.07]"
                         }`}
                       >
                         <button
@@ -519,7 +589,7 @@ export default function ScannerPage() {
                           <button
                             type="button"
                             onClick={() => removeCustomPage(item.value)}
-                            className="flex h-full cursor-pointer items-center border-l border-white/[0.12] px-3 text-[#aab2c4] transition hover:bg-white/[0.08] hover:text-white"
+                            className="flex h-full cursor-pointer items-center border-l border-white/12 px-3 text-[#aab2c4] transition hover:bg-white/8 hover:text-white"
                             aria-label={`${item.label} sayfasını kaldır`}
                           >
                             ×
@@ -531,13 +601,39 @@ export default function ScannerPage() {
                 </div>
               </section>
 
-              <section className="mt-6 rounded-xl border border-white/[0.09] bg-[#0d1423]/88 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] sm:p-6">
-                <h2 className="flex items-center gap-3 text-[22px] font-extrabold tracking-[-0.04em]">
-                  <Icon name="device" className="size-5 text-[#aebcff]" />
-                  Cihaz Kapsamı
-                </h2>
+              <section className="mt-6 rounded-2xl border border-white/9 bg-[#0d1423]/88 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] sm:p-6">
+                <div className="flex flex-col gap-4 border-b border-white/10 pb-6 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h2 className="flex items-center gap-3 text-[24px] font-extrabold tracking-[-0.04em] text-[#dce2ef] sm:text-[26px]">
+                      <Icon name="device" className="size-7 text-[#aebcff]" />
+                      Cihaz Kapsamı
+                    </h2>
 
-                <div className="mt-6 grid gap-4 md:grid-cols-3">
+                    <p className="mt-3 max-w-180 text-[13px] font-medium leading-6 text-[#8f98aa]">
+                      Seçilen ekran ölçülerinde taşma, kırılan grid/flex
+                      yapıları, font ölçekleri, yatay scroll ve mobil
+                      etkileşimler kontrol edilir.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="w-fit rounded-md bg-white/8 px-3 py-1.5 text-[12px] font-extrabold text-[#aeb6c8]">
+                      {selectedDeviceCount}/{deviceOptions.length} Seçili
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={toggleAllDevices}
+                      className="cursor-pointer text-[13px] font-bold text-[#aeb6c8] transition hover:text-white"
+                    >
+                      {selectedDeviceCount === deviceOptions.length
+                        ? "Temizle"
+                        : "Tümünü Seç"}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-7 grid gap-5 xs:grid-cols-2 md:grid-cols-4">
                   {deviceOptions.map((device) => (
                     <DeviceCard
                       key={device.value}
@@ -551,19 +647,19 @@ export default function ScannerPage() {
                 </div>
               </section>
 
-              <section className="mt-6 rounded-xl border border-white/[0.09] bg-[#0d1423]/88 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] sm:p-6">
-                <div className="flex flex-col gap-4 border-b border-white/[0.09] pb-5 sm:flex-row sm:items-center sm:justify-between">
-                  <h2 className="flex items-center gap-3 text-[22px] font-extrabold tracking-[-0.04em]">
-                    <Icon name="module" className="size-5 text-[#aebcff]" />
+              <section className="mt-6 rounded-2xl border border-white/9 bg-[#0d1423]/88 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] sm:p-6">
+                <div className="flex flex-col gap-4 border-b border-white/10 pb-6 sm:flex-row sm:items-center sm:justify-between">
+                  <h2 className="flex items-center gap-3 text-[24px] font-extrabold tracking-[-0.04em] text-[#dce2ef] sm:text-[26px]">
+                    <Icon name="module" className="size-7 text-[#aebcff]" />
                     Analiz Modülleri
                   </h2>
 
-                  <span className="w-fit rounded-md bg-white/[0.08] px-2.5 py-1 text-[11px] font-extrabold text-[#aeb6c8]">
+                  <span className="w-fit rounded-md bg-white/8 px-3 py-1.5 text-[12px] font-extrabold text-[#aeb6c8]">
                     {selectedModuleCount}/{modules.length} Seçili
                   </span>
                 </div>
 
-                <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="mt-7 grid gap-5 xs:grid-cols-2 md:grid-cols-4">
                   {modules.map((moduleItem) => (
                     <ModuleCard
                       key={moduleItem.title}
@@ -575,9 +671,9 @@ export default function ScannerPage() {
                 </div>
               </section>
 
-              <section className="mt-6 overflow-hidden rounded-xl border border-white/[0.09] bg-[#0d1423]/88 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+              <section className="mt-6 overflow-hidden rounded-2xl border border-white/9 bg-[#0d1423]/88 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
                 <div className="flex items-center justify-between px-4 py-5 sm:px-6">
-                  <h2 className="text-[22px] font-extrabold tracking-[-0.04em]">
+                  <h2 className="text-[24px] font-extrabold tracking-[-0.04em] text-[#dce2ef] sm:text-[26px]">
                     Son Hedefler
                   </h2>
                   <Link
@@ -589,9 +685,9 @@ export default function ScannerPage() {
                 </div>
 
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[820px] border-collapse">
+                  <table className="w-full min-w-205 border-collapse">
                     <thead>
-                      <tr className="border-y border-white/[0.09] text-left text-[11px] font-extrabold uppercase tracking-[0.1em] text-[#9aa3b5]">
+                      <tr className="border-y border-white/9 text-left text-[11px] font-extrabold uppercase tracking-widest text-[#9aa3b5]">
                         <th className="px-6 py-4">Site</th>
                         <th className="px-6 py-4">Tarih</th>
                         <th className="px-6 py-4">Modüller</th>
@@ -604,7 +700,7 @@ export default function ScannerPage() {
                       {recentTargets.map((row) => (
                         <tr
                           key={row.site}
-                          className="border-b border-white/[0.06] transition hover:bg-white/[0.025]"
+                          className="border-b border-white/6 transition hover:bg-white/2.5"
                         >
                           <td className="px-6 py-5">
                             <p className="text-[14px] font-extrabold text-[#dce1ef]">
@@ -679,7 +775,10 @@ export default function ScannerPage() {
               </section>
             </div>
 
-            <RightPanel />
+            <RightPanel
+              selectedDeviceCount={selectedDeviceCount}
+              selectedModuleCount={selectedModuleCount}
+            />
           </div>
         </section>
       </div>
@@ -689,8 +788,8 @@ export default function ScannerPage() {
 
 function Sidebar() {
   return (
-    <aside className="hidden w-[240px] shrink-0 border-r border-white/[0.08] bg-[#0c111d]/90 lg:flex lg:flex-col">
-      <div className="flex h-[70px] items-center gap-3 border-b border-white/[0.07] px-5">
+    <aside className="hidden w-60 shrink-0 border-r border-white/8 bg-[#0c111d]/90 lg:flex lg:flex-col">
+      <div className="flex h-17.5 items-center gap-3 border-b border-white/[0.07] px-5">
         <div className="grid size-9 place-items-center rounded-lg bg-[#2f6df6] text-white">
           <Icon name="brand" className="size-5" />
         </div>
@@ -723,13 +822,13 @@ function Sidebar() {
         </div>
       </nav>
 
-      <div className="border-t border-white/[0.11] px-4 py-5">
-        <div className="rounded-lg border border-white/[0.09] bg-[#111827]/80 p-4">
+      <div className="border-t border-white/11 px-4 py-5">
+        <div className="rounded-lg border border-white/9 bg-[#111827]/80 p-4">
           <div className="flex items-center justify-between text-[12px] font-bold text-[#c6ccda]">
             <span>Tarama kredisi</span>
             <span className="text-[#9ea7ba]">2.450 / 5.000</span>
           </div>
-          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/[0.08]">
+          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/8">
             <div className="h-full w-[49%] rounded-full bg-[#a9baff]" />
           </div>
           <div className="mt-3 flex items-center justify-between text-[11px] font-bold text-[#858fa4]">
@@ -744,11 +843,11 @@ function Sidebar() {
         </div>
 
         <div className="mt-5 space-y-2">
-          <button className="flex h-9 w-full cursor-pointer items-center gap-4 rounded-md px-4 text-[14px] font-bold text-[#a5adbe] transition hover:bg-white/[0.06] hover:text-white">
+          <button className="flex h-9 w-full cursor-pointer items-center gap-4 rounded-md px-4 text-[14px] font-bold text-[#a5adbe] transition hover:bg-white/6 hover:text-white">
             <Icon name="help" className="size-4" />
             Destek
           </button>
-          <button className="flex h-9 w-full cursor-pointer items-center gap-4 rounded-md px-4 text-[14px] font-bold text-[#a5adbe] transition hover:bg-white/[0.06] hover:text-white">
+          <button className="flex h-9 w-full cursor-pointer items-center gap-4 rounded-md px-4 text-[14px] font-bold text-[#a5adbe] transition hover:bg-white/6 hover:text-white">
             <Icon name="logout" className="size-4" />
             Çıkış Yap
           </button>
@@ -760,7 +859,7 @@ function Sidebar() {
 
 function Topbar() {
   return (
-    <header className="flex h-[70px] items-center justify-between border-b border-white/[0.08] bg-[#080d18]/75 px-4 backdrop-blur-xl sm:px-6">
+    <header className="flex h-17.5 items-center justify-between border-b border-white/8 bg-[#080d18]/75 px-4 backdrop-blur-xl sm:px-6">
       <nav className="hidden items-center gap-7 lg:flex">
         {[
           ["Dashboard", "/dashboard"],
@@ -782,7 +881,7 @@ function Topbar() {
       </nav>
 
       <div className="ml-auto flex items-center gap-4">
-        <div className="hidden items-center border-r border-white/[0.09] pr-4 text-right md:flex">
+        <div className="hidden items-center border-r border-white/9 pr-4 text-right md:flex">
           <div>
             <p className="text-[13px] font-bold text-[#d8dce8]">Acme Dijital</p>
             <p className="text-[12px] font-medium text-[#858fa4]">
@@ -791,23 +890,29 @@ function Topbar() {
           </div>
         </div>
 
-        <button type="button" className="cursor-pointer text-[#aab2c4] transition hover:text-white">
+        <button
+          type="button"
+          className="cursor-pointer text-[#aab2c4] transition hover:text-white"
+        >
           <Icon name="bell" className="size-5" />
         </button>
 
-        <button type="button" className="cursor-pointer text-[#aab2c4] transition hover:text-white">
+        <button
+          type="button"
+          className="cursor-pointer text-[#aab2c4] transition hover:text-white"
+        >
           <Icon name="settings" className="size-5" />
         </button>
 
         <Link
           href="/history"
-          className="hidden h-9 cursor-pointer items-center gap-2 rounded-md border border-white/[0.1] bg-white/[0.03] px-4 text-[13px] font-bold text-[#c0c7d5] transition hover:bg-white/[0.06] xl:inline-flex"
+          className="hidden h-9 cursor-pointer items-center gap-2 rounded-md border border-white/10 bg-white/3 px-4 text-[13px] font-bold text-[#c0c7d5] transition hover:bg-white/6 xl:inline-flex"
         >
           <Icon name="history" className="size-4" />
           Geçmiş Taramalar
         </Link>
 
-        <div className="hidden items-center gap-3 border-l border-white/[0.09] pl-4 md:flex">
+        <div className="hidden items-center gap-3 border-l border-white/9 pl-4 md:flex">
           <div>
             <p className="text-right text-[13px] font-bold text-[#d8dce8]">
               A. Selin
@@ -849,7 +954,7 @@ function SelectBox({
         <select
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          className="h-11 w-full cursor-pointer appearance-none rounded-md border border-white/[0.13] bg-[#080d18] px-4 pr-10 text-[14px] font-medium text-[#c7cdda] outline-none transition hover:border-white/25 focus:border-[#7f8fca]"
+          className="h-12 w-full cursor-pointer appearance-none rounded-lg border border-white/13 bg-[#080d18] px-4 pr-10 text-[15px] font-semibold text-[#c7cdda] outline-none transition hover:border-white/25 focus:border-[#aebcff]"
         >
           {options.map((option) => (
             <option
@@ -887,15 +992,30 @@ function DeviceCard({
     <button
       type="button"
       onClick={onClick}
-      className={`flex h-[112px] cursor-pointer flex-col items-center justify-center rounded-lg border text-center transition ${
+      className={`group flex h-38.5 cursor-pointer flex-col items-center justify-center rounded-xl border px-3 text-center transition duration-300 ${
         active
-          ? "border-[#aebcff] bg-white/[0.07]"
-          : "border-white/[0.11] bg-[#080d18]/80 hover:border-white/25"
+          ? "border-[#aebcff] bg-[#1a2031] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
+          : "border-white/[0.14] bg-[#080d18]/80 hover:border-white/30 hover:bg-[#101827]"
       }`}
     >
-      <Icon name={icon} className="size-8 text-[#aebcff]" />
-      <span className="mt-4 text-[16px] font-bold text-[#c8cedc]">{title}</span>
-      <span className="mt-1 text-[11px] font-bold text-[#8993a6]">{desc}</span>
+      <Icon
+        name={icon}
+        className={`size-10 transition ${
+          active ? "text-[#b9c7ff]" : "text-[#aeb6c8] group-hover:text-[#b9c7ff]"
+        }`}
+      />
+
+      <span
+        className={`mt-5 text-[22px] font-semibold tracking-[-0.03em] transition ${
+          active ? "text-[#dce2ef]" : "text-[#b9bfcc] group-hover:text-[#dce2ef]"
+        }`}
+      >
+        {title}
+      </span>
+
+      <span className="mt-1 text-[14px] font-semibold text-[#9ca4b6]">
+        {desc}
+      </span>
     </button>
   );
 }
@@ -915,40 +1035,54 @@ function ModuleCard({
 }) {
   return (
     <div
-      className={`rounded-lg border p-4 transition ${
+      className={`group rounded-xl border p-6 transition duration-300 ${
         enabled
-          ? "border-white/[0.11] bg-[#080d18]/75"
-          : "border-white/[0.06] bg-[#080d18]/35 opacity-60"
+          ? "border-white/16 bg-[#080d18]/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]"
+          : "border-white/8 bg-[#080d18]/45 opacity-60"
       }`}
     >
-      <div className="flex items-start justify-between gap-3">
-        <Icon name={icon} className="size-5 text-[#aebcff]" />
+      <div className="flex items-start justify-between gap-4 bgw">
+        <Icon
+          name={icon}
+          className={`size-7 transition ${
+            enabled ? "text-[#b9c7ff]" : "text-[#7f899d]"
+          }`}
+        />
 
         <button
           type="button"
           onClick={onToggle}
           aria-pressed={enabled}
-          className={`relative h-4 w-8 cursor-pointer rounded-full transition ${
-            enabled ? "bg-[#aebcff]" : "bg-white/[0.16]"
+          className={`relative h-6 w-11 cursor-pointer rounded-full transition duration-300 ${
+            enabled ? "bg-[#aebcff]!" : "bg-white/[0.016]!"
           }`}
         >
           <span
-            className={`absolute top-0.5 size-3 rounded-full bg-white transition ${
-              enabled ? "right-0.5" : "left-0.5"
+            className={`absolute top-1 size-4 rounded-full bg-white shadow-sm transition duration-300 ${
+              enabled ? "left-6" : "left-1"
             }`}
           />
         </button>
       </div>
 
-      <h3 className="mt-5 text-[15px] font-bold text-[#d6dbea]">{title}</h3>
-      <p className="mt-2 min-h-[34px] text-[12px] font-medium leading-[1.35] text-[#a0a9bb]">
+      <h3 className="mt-7 text-[20px] font-semibold tracking-[-0.03em] text-[#d6dbea]">
+        {title}
+      </h3>
+
+      <p className="mt-2 min-h-12.5 text-[15px] font-medium leading-[1.35] text-[#a0a9bb]">
         {desc}
       </p>
     </div>
   );
 }
 
-function RightPanel() {
+function RightPanel({
+  selectedDeviceCount,
+  selectedModuleCount,
+}: {
+  selectedDeviceCount: number;
+  selectedModuleCount: number;
+}) {
   return (
     <aside className="space-y-6 xl:sticky xl:top-20 xl:self-start">
       <InfoCard title="Sistem Durumu" dot>
@@ -972,9 +1106,26 @@ function RightPanel() {
         </div>
       </InfoCard>
 
+      <InfoCard title="Tarama Özeti" icon="target">
+        <div className="mt-4 space-y-3 text-[12px] font-bold">
+          <div className="flex items-center justify-between">
+            <span className="text-[#a7b0c2]">Ekran ölçüsü</span>
+            <span className="text-[#d5dbea]">{selectedDeviceCount} adet</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-[#a7b0c2]">Analiz modülü</span>
+            <span className="text-[#d5dbea]">{selectedModuleCount} adet</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-[#a7b0c2]">Responsive QA</span>
+            <span className="text-[#25d18c]">Aktif</span>
+          </div>
+        </div>
+      </InfoCard>
+
       <InfoCard title="Kuyruk Durumu" icon="queue">
         <div className="mt-3 flex items-center gap-4">
-          <div className="grid size-11 shrink-0 place-items-center rounded-full border border-white/[0.15] bg-white/[0.05] text-[20px] font-extrabold">
+          <div className="grid size-11 shrink-0 place-items-center rounded-full border border-white/15 bg-white/5 text-[20px] font-extrabold">
             3
           </div>
           <div>
@@ -988,15 +1139,6 @@ function RightPanel() {
         </div>
       </InfoCard>
 
-      <InfoCard title="Son Senkronizasyon" icon="sync">
-        <p className="mt-4 text-[14px] font-bold text-[#cfd5e2]">
-          10 May 2025, 14:32
-        </p>
-        <p className="mt-2 text-[12px] font-extrabold text-[#25d18c]">
-          Başarılı
-        </p>
-      </InfoCard>
-
       <InfoCard title="Tahmini Tarama Süresi" icon="timer">
         <p className="mt-5 text-[24px] font-extrabold tracking-[-0.04em]">
           8 - 12 dk
@@ -1005,9 +1147,9 @@ function RightPanel() {
 
       <InfoCard title="Tarama İpuçları" icon="bulb">
         <div className="mt-4 space-y-3 text-[12px] font-medium leading-5 text-[#a2acbd]">
-          <p>⊙ Daha hızlı sonuç için derinliği 1 seviyede tutun.</p>
-          <p>⊙ Performans testi için sitemap bazlı tarama önerilir.</p>
-          <p>⊙ JS Rendering aktifken tarama süresi %40 uzayabilir.</p>
+          <p>⊙ Çok ekran seçmek responsive sorunları daha iyi yakalar.</p>
+          <p>⊙ 320px ve 480px mobil kırılımlarını ayrı kontrol edin.</p>
+          <p>⊙ 1440px üzeri ekranlarda boşluk ve grid hizası kontrol edilir.</p>
         </div>
       </InfoCard>
     </aside>
@@ -1026,7 +1168,7 @@ function InfoCard({
   icon?: string;
 }) {
   return (
-    <div className="rounded-xl border border-white/[0.09] bg-[#0d1423]/88 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+    <div className="rounded-xl border border-white/9 bg-[#0d1423]/88 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
       <div className="flex items-center justify-between gap-4">
         <h3 className="flex items-center gap-2 text-[15px] font-extrabold text-[#d9deeb]">
           {icon && <Icon name={icon} className="size-4 text-[#aebcff]" />}
