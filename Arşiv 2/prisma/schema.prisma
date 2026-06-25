@@ -1,0 +1,80 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Scan {
+  id                 String       @id @default(cuid())
+  url                String
+  site               String
+  status             String       @default("running")
+  progress           Int          @default(0)
+
+  scopeType          String?
+  crawlDepth         String?
+  selectedDevices    String?
+  selectedModules    String?
+  selectedPages      String?
+
+  overallScore       Int?
+  performanceScore   Int?
+  seoScore           Int?
+  accessibilityScore Int?
+  uxScore            Int?
+  securityScore      Int?
+
+  startedAt          DateTime     @default(now())
+  completedAt        DateTime?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  findings           Finding[]
+  vitals             Vital[]
+  pages              PageResult[]
+}
+
+model Finding {
+  id          String   @id @default(cuid())
+  scanId      String
+  title       String
+  description String
+  level       String
+  category    String
+  tone        String   @default("orange")
+  solution    String?
+  createdAt   DateTime @default(now())
+
+  scan        Scan     @relation(fields: [scanId], references: [id], onDelete: Cascade)
+}
+
+model Vital {
+  id        String   @id @default(cuid())
+  scanId    String
+  metric    String
+  value     String
+  status    String
+  average   String
+  trend     String
+  tone      String
+  width     String
+  createdAt DateTime @default(now())
+
+  scan      Scan     @relation(fields: [scanId], references: [id], onDelete: Cascade)
+}
+
+model PageResult {
+  id          String   @id @default(cuid())
+  scanId      String
+  path        String
+  score       Int?
+  critical    Int      @default(0)
+  warning     Int      @default(0)
+  lastChecked String
+  createdAt   DateTime @default(now())
+
+  scan        Scan     @relation(fields: [scanId], references: [id], onDelete: Cascade)
+}
