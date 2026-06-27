@@ -21,7 +21,7 @@ http://localhost:3000
 - `/dashboard` Genel Bakış
 - `/scanner` Yeni Tarama
 - `/live` Canlı İzleme
-- `/report` Detaylı Rapor
+- `/report?scanId=...` Detaylı Rapor
 - `/history` Analiz Geçmişi
 - `/pricing` Fiyatlandırma
 - `/auth` Giriş / Kayıt başlangıcı

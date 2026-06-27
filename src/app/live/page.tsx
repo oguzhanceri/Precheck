@@ -1,5 +1,6 @@
 "use client";
 
+import { createReportHref, createScannerHref } from "@/lib/routes";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -57,9 +58,9 @@ type ScanApiPayload = {
 const sidebarItems = [
   { label: "Genel Bakış", href: "/dashboard", icon: "grid" },
   { label: "Yeni Tarama", href: "/scanner", icon: "scan" },
-  { label: "Canlı İzleme", href: "/live", icon: "live", active: true },
+  { label: "Canlı İzleme", href: "/scanner", icon: "live", active: true },
   { label: "Analiz Geçmişi", href: "/history", icon: "history" },
-  { label: "Raporlar", href: "/report", icon: "chart" },
+  { label: "Raporlar", href: "/history", icon: "chart" },
   { label: "Takım", href: "/settings", icon: "team" },
   { label: "Ayarlar", href: "/settings", icon: "settings" },
 ];
@@ -75,30 +76,6 @@ const defaultModuleTitles = [
   "Form Kontrolleri",
 ];
 
-function getInitialScanUrl() {
-  if (typeof window === "undefined") return "https://orneksite.com";
-
-  return (
-    new URLSearchParams(window.location.search).get("url") ??
-    "https://orneksite.com"
-  );
-}
-
-function getInitialScanId() {
-  if (typeof window === "undefined") return "";
-
-  const params = new URLSearchParams(window.location.search);
-
-  const queryScanId =
-    params.get("scanId") ??
-    params.get("jobId") ??
-    params.get("id");
-
-  if (queryScanId) return queryScanId;
-
-  return window.localStorage.getItem("precheck:lastScanId") ?? "";
-}
-
 export default function LivePage() {
   const router = useRouter();
   const logListRef = useRef<HTMLDivElement | null>(null);
@@ -106,8 +83,9 @@ export default function LivePage() {
   const redirectStartedRef = useRef(false);
   const redirectTimerRef = useRef<number | null>(null);
 
-  const [scanUrl, setScanUrl] = useState(getInitialScanUrl);
-  const [scanId] = useState(getInitialScanId);
+  const [scanUrl, setScanUrl] = useState("");
+  const [scanId, setScanId] = useState<string | null>(null);
+  const [isClientReady, setIsClientReady] = useState(false);
   const [progress, setProgress] = useState(0);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [startedAtMs, setStartedAtMs] = useState<number | null>(null);
@@ -191,11 +169,28 @@ export default function LivePage() {
           : "text-[#25d18c]";
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+
+    const currentScanId = params.get("scanId");
+    const currentUrl = params.get("url");
+
+    setScanId(currentScanId);
+
+    if (currentUrl) {
+      setScanUrl(currentUrl);
+    }
+
+    setIsClientReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isClientReady) return;
+
     if (!scanId) {
       setIsInitialLoading(false);
       setScanStatus("failed");
       setApiError(
-        "Canlı izleme başlatılamadı. URL içinde geçerli bir scanId bulunamadı.",
+        "Canlı izleme için scanId gerekiyor. Yeni tarama sayfasına yönlendiriliyorsunuz.",
       );
       setLogs([
         {
@@ -206,7 +201,15 @@ export default function LivePage() {
           active: true,
         },
       ]);
-      return;
+
+      const params = new URLSearchParams(window.location.search);
+      const fallbackUrl = params.get("url");
+
+      const timerId = window.setTimeout(() => {
+        router.replace(createScannerHref(fallbackUrl));
+      }, 1200);
+
+      return () => window.clearTimeout(timerId);
     }
 
     if (isLocalCancelled) return;
@@ -268,9 +271,7 @@ export default function LivePage() {
           }
 
           redirectTimerRef.current = window.setTimeout(() => {
-            router.replace(
-              `/report?scanId=${encodeURIComponent(normalizedScan.id)}`,
-            );
+            router.replace(createReportHref(normalizedScan.id));
           }, 700);
         }
       } catch (error) {
@@ -312,7 +313,7 @@ export default function LivePage() {
         window.clearInterval(intervalId);
       }
     };
-  }, [scanId, router, isLocalCancelled]);
+  }, [isClientReady, scanId, router, isLocalCancelled]);
 
   useEffect(() => {
     if (!startedAtMs) return;
@@ -376,7 +377,9 @@ export default function LivePage() {
   };
 
   const handleGoReport = () => {
-    router.push(`/report?scanId=${encodeURIComponent(scanId)}`);
+    if (!scanId) return;
+
+    router.push(createReportHref(scanId));
   };
 
   return (
@@ -432,7 +435,7 @@ export default function LivePage() {
 
               <section className="mt-7 overflow-hidden rounded-xl border border-white/9 bg-[#0d1423]/88 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
                 <div className="grid lg:grid-cols-[300px_1fr]">
-                  <div className="border-b border-white/8 p-9 lg:border-b-0 lg:border-r">
+                  <div className="border-b border-white/8 p-4 lg:border-b-0 lg:border-r">
                     <div className="flex items-center gap-4">
                       <Icon name="globe" className="size-6 text-[#c7d2ff]" />
                       <div>
@@ -823,8 +826,8 @@ function Topbar() {
         {[
           ["Dashboard", "/dashboard"],
           ["Tarama", "/scanner"],
-          ["Canlı İzleme", "/live"],
-          ["Raporlar", "/report"],
+          ["Canlı İzleme", "/scanner"],
+          ["Raporlar", "/history"],
           ["Fiyatlandırma", "/pricing"],
         ].map(([item, href]) => (
           <Link

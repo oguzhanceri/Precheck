@@ -81,7 +81,7 @@ const sidebarItems = [
   { label: "Genel Bakış", href: "/dashboard", icon: "grid", active: true },
   { label: "Yeni Tarama", href: "/scanner", icon: "scan" },
   { label: "Analiz Geçmişi", href: "/history", icon: "history" },
-  { label: "Raporlar", href: "/report", icon: "chart" },
+  { label: "Raporlar", href: "/history", icon: "chart" },
   { label: "Takım", href: "/settings", icon: "team" },
   { label: "Ayarlar", href: "/settings", icon: "settings" },
 ];
@@ -89,8 +89,8 @@ const sidebarItems = [
 const navItems = [
   { label: "Dashboard", href: "/dashboard", active: true },
   { label: "Tarama", href: "/scanner" },
-  { label: "Canlı İzleme", href: "/live" },
-  { label: "Raporlar", href: "/report" },
+  { label: "Canlı İzleme", href: "/scanner" },
+  { label: "Raporlar", href: "/history" },
   { label: "Fiyatlandırma", href: "/pricing" },
 ];
 
@@ -319,12 +319,12 @@ export default function DashboardPage() {
       return;
     }
 
-    router.push(`/report?scanId=${encodeURIComponent(targetRow.id)}`);
+    router.push(createReportHref(targetRow.id));
   };
 
   const startNewScan = (url?: string) => {
     if (url) {
-      router.push(`/scanner?url=${encodeURIComponent(url)}`);
+      router.push(createScannerHref(url));
       return;
     }
 
@@ -853,7 +853,7 @@ export default function DashboardPage() {
               type="button"
               onClick={() => {
                 if (selectedAlert.scanId) {
-                  router.push(`/report?scanId=${encodeURIComponent(selectedAlert.scanId)}`);
+                  router.push(createReportHref(selectedAlert.scanId));
                   return;
                 }
 

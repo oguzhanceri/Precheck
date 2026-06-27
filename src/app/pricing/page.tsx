@@ -28,7 +28,7 @@ const navItems = [
   { label: "Ürün", href: "/" },
   { label: "Özellikler", href: "/#features" },
   { label: "Nasıl Çalışır", href: "/#how-it-works" },
-  { label: "Raporlar", href: "/report" },
+  { label: "Raporlar", href: "/history" },
   { label: "Fiyatlandırma", href: "/pricing", active: true },
 ];
 
@@ -338,7 +338,7 @@ export default function PricingPage() {
 
               <button
                 type="button"
-                onClick={() => router.push("/report")}
+                onClick={() => router.push("/history")}
                 className="inline-flex h-13 cursor-pointer items-center justify-center rounded-lg border border-white/8 bg-[#0d1423] px-10 text-[16px] font-bold text-[#cbd2df] transition hover:border-white/20 hover:bg-white/6 sm:h-14 sm:px-16 sm:text-[18px]"
               >
                 Demo Raporu İncele
@@ -644,7 +644,7 @@ function Footer() {
             ["Özellikler", "/#features"],
             ["Nasıl Çalışır", "/#how-it-works"],
             ["Fiyatlandırma", "/pricing"],
-            ["Rapor Örnekleri", "/report"],
+            ["Rapor Örnekleri", "/history"],
           ]}
         />
 

@@ -68,9 +68,9 @@ type ScoreFilter = "all" | "high" | "medium" | "low" | "empty";
 const sidebarItems = [
   { label: "Genel Bakış", href: "/dashboard", icon: "grid" },
   { label: "Yeni Tarama", href: "/scanner", icon: "search" },
-  { label: "Canlı İzleme", href: "/live", icon: "live" },
+  { label: "Canlı İzleme", href: "/scanner", icon: "live" },
   { label: "Analiz Geçmişi", href: "/history", icon: "history", active: true },
-  { label: "Raporlar", href: "/report", icon: "file" },
+  { label: "Raporlar", href: "/history", icon: "file" },
   { label: "Takım", href: "/settings", icon: "team" },
   { label: "Ayarlar", href: "/settings", icon: "settings" },
 ];
@@ -78,8 +78,8 @@ const sidebarItems = [
 const navItems = [
   { label: "Dashboard", href: "/dashboard" },
   { label: "Tarama", href: "/scanner" },
-  { label: "Canlı İzleme", href: "/live" },
-  { label: "Raporlar", href: "/report", active: true },
+  { label: "Canlı İzleme", href: "/scanner" },
+  { label: "Raporlar", href: "/history", active: true },
   { label: "Fiyatlandırma", href: "/pricing" },
 ];
 
@@ -351,11 +351,11 @@ export default function HistoryPage() {
   };
 
   const openReport = (row: HistoryRow) => {
-    router.push(`/report?scanId=${encodeURIComponent(row.id)}`);
+    router.push(createReportHref(row.id));
   };
 
   const repeatScan = (row: HistoryRow) => {
-    router.push(`/scanner?url=${encodeURIComponent(row.url)}`);
+    router.push(createScannerHref(row.url));
   };
 
   const deleteSelectedRow = async () => {
@@ -842,7 +842,7 @@ export default function HistoryPage() {
             <RightPanel
               rows={rows}
               onProblemSelect={setSelectedProblem}
-              onAllProblems={() => router.push("/report")}
+              onAllProblems={() => router.push("/history")}
             />
           </div>
         </section>

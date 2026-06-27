@@ -714,7 +714,7 @@ export default function Home() {
                 <Icon name="play" className="size-5 fill-white" /> Analiz Başlat
               </Link>
               <Link
-                href="/report"
+                href="/history"
                 className="inline-flex h-12 items-center justify-center gap-3 rounded-lg border border-white/13 bg-white/2 px-7 text-[16px] font-bold text-[#e0e3ed] transition hover:border-white/25 hover:bg-white/6"
               >
                 <Icon name="file" className="size-5" /> Demo Raporu İncele
@@ -872,7 +872,7 @@ export default function Home() {
               Ücretsiz Denemeyi Başlat
             </Link>
             <Link
-              href="/report"
+              href="/history"
               className="inline-flex h-12 items-center justify-center rounded-lg border border-white/[0.14] bg-[#111727] px-7 text-[16px] font-bold text-[#dfe2ec] transition lg:hover:border-white/25 lg:hover:bg-white/6"
             >
               Demo Raporu İncele

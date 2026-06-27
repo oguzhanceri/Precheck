@@ -10,8 +10,8 @@ export const marketingNav: NavItem[] = [
 export const appNav: NavItem[] = [
   { label: "Dashboard", href: "/dashboard" },
   { label: "Yeni Tarama", href: "/scanner" },
-  { label: "Canlı İzleme", href: "/live" },
-  { label: "Detaylı Rapor", href: "/report" },
+  { label: "Canlı İzleme", href: "/scanner" },
+  { label: "Detaylı Rapor", href: "/history" },
   { label: "Geçmiş", href: "/history" },
   { label: "Ayarlar", href: "/settings" },
 ];

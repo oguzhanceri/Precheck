@@ -1,5 +1,6 @@
 "use client";
 
+import { createLiveHref } from "@/lib/routes";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
@@ -14,7 +15,7 @@ const sidebarItems = [
   { label: "Genel Bakış", href: "/dashboard", icon: "grid" },
   { label: "Yeni Tarama", href: "/scanner", icon: "scan", active: true },
   { label: "Analiz Geçmişi", href: "/history", icon: "history" },
-  { label: "Raporlar", href: "/report", icon: "chart" },
+  { label: "Raporlar", href: "/history", icon: "chart" },
   { label: "Takım", href: "/settings", icon: "team" },
   { label: "Ayarlar", href: "/settings", icon: "settings" },
 ];
@@ -304,7 +305,13 @@ export default function ScannerPage() {
     });
   };
 
-const handleStartScan = async () => {
+  const applyTargetUrl = (url: string) => {
+    setProtocol(url.startsWith("http://") ? "http://" : "https://");
+    setTargetUrl(url.replace(/^https?:\/\//, ""));
+    setScanMessage("");
+  };
+
+  const handleStartScan = async () => {
   const cleanedTargetUrl = targetUrl
     .trim()
     .replace(/^https?:\/\//, "")
@@ -369,11 +376,7 @@ const handleStartScan = async () => {
       throw new Error("API scanId döndürmedi.");
     }
 
-    window.localStorage.setItem("precheck:lastScanId", nextScanId);
-
-    router.push(
-      `/live?scanId=${encodeURIComponent(nextScanId)}&url=${encodeURIComponent(fullUrl)}`,
-    );
+    router.push(createLiveHref(nextScanId, fullUrl));
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Tarama başlatılamadı.";
@@ -733,29 +736,17 @@ const handleStartScan = async () => {
                             <div className="flex items-center justify-end gap-4 text-[#aab2c4]">
                               <button
                                 type="button"
-                                onClick={() =>
-                                  router.push(
-                                    `/report?url=${encodeURIComponent(row.url)}`,
-                                  )
-                                }
+                                onClick={() => applyTargetUrl(row.url)}
                                 className="cursor-pointer transition hover:text-white"
+                                aria-label={`${row.site} için yeni tarama hazırla`}
                               >
                                 <Icon name="chart" className="size-4" />
                               </button>
                               <button
                                 type="button"
-                                onClick={() => {
-                                  setProtocol(
-                                    row.url.startsWith("http://")
-                                      ? "http://"
-                                      : "https://",
-                                  );
-                                  setTargetUrl(
-                                    row.url.replace(/^https?:\/\//, ""),
-                                  );
-                                  setScanMessage("");
-                                }}
+                                onClick={() => applyTargetUrl(row.url)}
                                 className="cursor-pointer transition hover:text-white"
+                                aria-label={`${row.site} için tekrar analiz hazırla`}
                               >
                                 <Icon name="refresh" className="size-4" />
                               </button>
@@ -864,8 +855,8 @@ function Topbar() {
         {[
           ["Dashboard", "/dashboard"],
           ["Tarama", "/scanner"],
-          ["Canlı İzleme", "/live"],
-          ["Raporlar", "/report"],
+          ["Canlı İzleme", "/scanner"],
+          ["Raporlar", "/history"],
           ["Fiyatlandırma", "/pricing"],
         ].map(([item, href]) => (
           <Link

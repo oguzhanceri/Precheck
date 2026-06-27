@@ -1,5 +1,6 @@
 "use client";
 
+import { createReportHref, createScannerHref } from "@/lib/routes";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
@@ -91,7 +92,7 @@ type ScanInfoRow = [string, string];
 const sidebarItems = [
   { label: "Genel Bakış", href: "/dashboard", icon: "grid" },
   { label: "Yeni Tarama", href: "/scanner", icon: "search" },
-  { label: "Canlı İzleme", href: "/live", icon: "live" },
+  { label: "Canlı İzleme", href: "/scanner", icon: "live" },
   { label: "Analiz Geçmişi", href: "/history", icon: "history" },
   { label: "Raporlar", href: "/history", icon: "file", active: true },
   { label: "Takım", href: "/settings", icon: "team" },
@@ -101,7 +102,7 @@ const sidebarItems = [
 const topbarItems = [
   { label: "Dashboard", href: "/dashboard" },
   { label: "Tarama", href: "/scanner" },
-  { label: "Canlı İzleme", href: "/live" },
+  { label: "Canlı İzleme", href: "/scanner" },
   { label: "Raporlar", href: "/history", active: true },
   { label: "Fiyatlandırma", href: "/pricing" },
 ];
@@ -389,9 +390,7 @@ export default function ReportPage() {
       return;
     }
 
-    const link = `${window.location.origin}/report?scanId=${encodeURIComponent(
-      scanId,
-    )}`;
+    const link = `${window.location.origin}${createReportHref(scanId)}`;
 
     setShareLink(link);
 
@@ -414,7 +413,7 @@ export default function ReportPage() {
       return;
     }
 
-    router.push(`/scanner?url=${encodeURIComponent(reportUrl)}`);
+    router.push(createScannerHref(reportUrl));
   };
 
   const handleArchive = () => {
@@ -2121,13 +2120,7 @@ function normalizeModuleKey(value: string): ModuleKey | null {
 }
 
 function shouldShowVitalsForModules(activeModules: ModuleKey[]) {
-  return (
-    activeModules.length === 0 ||
-    activeModules.includes("performance") ||
-    activeModules.includes("ux") ||
-    activeModules.includes("responsive") ||
-    activeModules.includes("interaction")
-  );
+  return activeModules.length === 0 || activeModules.includes("performance");
 }
 
 function getScoreCardModuleKey(title: string) {
