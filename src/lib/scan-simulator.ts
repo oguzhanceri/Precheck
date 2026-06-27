@@ -736,10 +736,27 @@ function clampNumber(value: number, min: number, max: number) {
 function dedupeFindings(findings: ReportFinding[]) {
   const map = new Map<string, ReportFinding>();
 
-  findings.forEach((finding) => {
-    const key = `${finding.category}-${finding.title}-${finding.level}`;
+  const levelPriority: Record<string, number> = {
+    KRİTİK: 4,
+    YÜKSEK: 3,
+    ORTA: 2,
+    BİLGİ: 1,
+  };
 
-    if (!map.has(key)) {
+  findings.forEach((finding) => {
+    const key = `${finding.category}-${finding.title}`;
+
+    const existing = map.get(key);
+
+    if (!existing) {
+      map.set(key, finding);
+      return;
+    }
+
+    const existingPriority = levelPriority[existing.level] ?? 0;
+    const currentPriority = levelPriority[finding.level] ?? 0;
+
+    if (currentPriority > existingPriority) {
       map.set(key, finding);
     }
   });

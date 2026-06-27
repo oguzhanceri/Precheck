@@ -17,7 +17,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="tr" className="antialiased">
-      <body>{children}</body>
+      <body className="select-none">{children}</body>
     </html>
   );
 }

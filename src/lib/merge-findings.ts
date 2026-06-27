@@ -26,9 +26,8 @@ export function mergeDuplicateFindings<T extends FindingWithPage>(
     const pagePath = finding.path || finding.page || "Bilinmeyen sayfa";
 
     const key = [
-      finding.category,
-      finding.level,
-      finding.title.toLowerCase().trim(),
+    finding.category,
+    finding.title.toLowerCase().trim(),
     ].join("__");
 
     const existing = map.get(key);
