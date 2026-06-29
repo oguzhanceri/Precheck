@@ -12,6 +12,7 @@ export type FindingWithPage = {
 export type MergedFinding = FindingWithPage & {
   affectedPages: string[];
   affectedCount: number;
+  
 };
 
 export function mergeDuplicateFindings<T extends FindingWithPage>(

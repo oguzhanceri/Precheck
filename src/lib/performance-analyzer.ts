@@ -1,6 +1,5 @@
 import { mergeDuplicateFindings } from "@/lib/merge-findings";
 
-
 export type PerformanceVital = {
   metric: string;
   value: string;
@@ -15,6 +14,7 @@ export type PerformanceFinding = {
   icon: string;
   category: "performance";
   solution: string;
+  causes?: string[];
 };
 
 export type PerformanceSuggestion = {
@@ -42,17 +42,17 @@ type LighthouseAudit = {
   displayValue?: string;
 };
 
+type AuditTranslation = {
+  title: string;
+  desc: string;
+  solution: string;
+  actions: string[];
+  causes: string[];
+};
+
 const API_ENDPOINT = "https://www.googleapis.com/pagespeedonline/v5/runPagespeed";
 
-const auditTranslations: Record<
-  string,
-  {
-    title: string;
-    desc: string;
-    solution: string;
-    actions: string[];
-  }
-> = {
+const auditTranslations: Record<string, AuditTranslation> = {
   "largest-contentful-paint": {
     title: "Largest Contentful Paint (LCP) süresi yüksek",
     desc: "Sayfanın ana içerik öğesi geç yükleniyor. Bu durum kullanıcının ilk yükleme deneyimini olumsuz etkiler.",
@@ -62,6 +62,12 @@ const auditTranslations: Record<
       "LCP öğesini tespit edip boyutunu küçültün.",
       "Hero görseli için preload kullanın.",
       "Kritik CSS dışındaki stilleri geciktirin.",
+    ],
+    causes: [
+      "Hero veya ana görsel çok büyük olabilir.",
+      "LCP öğesi için preload kullanılmıyor olabilir.",
+      "Sunucu yanıt süresi yüksek olabilir.",
+      "Kritik CSS veya font yüklemeleri ilk render’ı geciktiriyor olabilir.",
     ],
   },
   "cumulative-layout-shift": {
@@ -74,6 +80,12 @@ const auditTranslations: Record<
       "Sonradan yüklenen banner veya popup alanları için yer ayırın.",
       "Font değişimlerinden kaynaklı layout shift’i azaltın.",
     ],
+    causes: [
+      "Görsellerde width/height veya aspect-ratio eksik olabilir.",
+      "Sonradan yüklenen banner, popup veya iframe alanı sayfayı itiyor olabilir.",
+      "Font yüklenirken metin ölçüleri değişiyor olabilir.",
+      "Dinamik içerikler için önceden alan ayrılmamış olabilir.",
+    ],
   },
   "interaction-to-next-paint": {
     title: "Interaction to Next Paint (INP) ölçümü kontrol edilmeli",
@@ -84,6 +96,12 @@ const auditTranslations: Record<
       "Uzun çalışan JavaScript görevlerini parçalayın.",
       "Ağır event listener işlemlerini sadeleştirin.",
       "Üçüncü parti scriptleri azaltın.",
+    ],
+    causes: [
+      "Click, scroll veya input event handler’ları ağır çalışıyor olabilir.",
+      "Ana thread uzun JavaScript görevleriyle meşgul olabilir.",
+      "Üçüncü parti scriptler etkileşim yanıtını geciktiriyor olabilir.",
+      "Yoğun DOM güncellemeleri etkileşim sonrası render’ı geciktiriyor olabilir.",
     ],
   },
   "first-contentful-paint": {
@@ -96,6 +114,12 @@ const auditTranslations: Record<
       "Gereksiz render-blocking scriptleri defer edin.",
       "Font dosyaları için preload ve font-display kullanın.",
     ],
+    causes: [
+      "Render-blocking CSS veya JavaScript kaynakları olabilir.",
+      "Font dosyaları geç yükleniyor olabilir.",
+      "Kritik CSS ayrıştırılmamış olabilir.",
+      "Sunucu HTML yanıtı yavaş dönüyor olabilir.",
+    ],
   },
   "speed-index": {
     title: "Speed Index değeri yüksek",
@@ -106,6 +130,12 @@ const auditTranslations: Record<
       "İlk ekrandaki görselleri optimize edin.",
       "Aşağıdaki görseller için lazy loading kullanın.",
       "Kritik olmayan animasyon ve scriptleri erteleyin.",
+    ],
+    causes: [
+      "İlk ekrandaki medya dosyaları büyük olabilir.",
+      "Lazy loading stratejisi eksik veya yanlış kullanılıyor olabilir.",
+      "Animasyonlar veya ağır scriptler ilk yüklemeyi yavaşlatıyor olabilir.",
+      "CSS ve font yüklemeleri görsel tamamlanmayı geciktiriyor olabilir.",
     ],
   },
   "total-blocking-time": {
@@ -118,6 +148,12 @@ const auditTranslations: Record<
       "Dynamic import ile ağır modülleri ayırın.",
       "Üçüncü parti scriptleri sadece gerekli sayfalarda yükleyin.",
     ],
+    causes: [
+      "Büyük JavaScript bundle’ları ana thread’i bloke ediyor olabilir.",
+      "Üçüncü parti scriptler uzun task oluşturuyor olabilir.",
+      "Kullanılmayan JavaScript ilk yüklemede çalışıyor olabilir.",
+      "Ağır componentler route bazlı bölünmemiş olabilir.",
+    ],
   },
   "render-blocking-resources": {
     title: "Render-blocking kaynaklar sayfayı geciktiriyor",
@@ -128,6 +164,12 @@ const auditTranslations: Record<
       "Kritik CSS’i önceliklendirin.",
       "Gereksiz stylesheet dosyalarını kaldırın.",
       "Script dosyalarında defer/async stratejisi kullanın.",
+    ],
+    causes: [
+      "CSS dosyaları render öncesi bloklayıcı yükleniyor olabilir.",
+      "Script dosyalarında defer veya async kullanılmıyor olabilir.",
+      "Kritik olmayan stylesheet dosyaları ilk render’a dahil edilmiş olabilir.",
+      "Font veya ikon kütüphaneleri ilk render’ı geciktiriyor olabilir.",
     ],
   },
   "unused-javascript": {
@@ -140,6 +182,12 @@ const auditTranslations: Record<
       "Route bazlı code splitting uygulayın.",
       "Ağır paketleri daha hafif alternatiflerle değiştirin.",
     ],
+    causes: [
+      "Sayfada kullanılmayan component kodları bundle’a dahil edilmiş olabilir.",
+      "Route bazlı code splitting eksik olabilir.",
+      "Ağır üçüncü parti paketler ilk yüklemeye eklenmiş olabilir.",
+      "Tree-shaking verimli çalışmıyor olabilir.",
+    ],
   },
   "unused-css-rules": {
     title: "Kullanılmayan CSS kuralları fazla",
@@ -150,6 +198,12 @@ const auditTranslations: Record<
       "Tailwind content path ayarlarını kontrol edin.",
       "Kullanılmayan global CSS sınıflarını temizleyin.",
       "Sayfaya özel CSS yükleme stratejisi kullanın.",
+    ],
+    causes: [
+      "Global CSS içinde kullanılmayan kurallar olabilir.",
+      "Tailwind content path ayarları eksik olabilir.",
+      "Tüm sayfaların CSS’i tek dosyada yükleniyor olabilir.",
+      "Eski componentlerden kalan stiller temizlenmemiş olabilir.",
     ],
   },
   "uses-optimized-images": {
@@ -162,16 +216,27 @@ const auditTranslations: Record<
       "Görselleri WebP veya AVIF formatına çevirin.",
       "Kalite oranını görsel kayıp yaratmadan düşürün.",
     ],
+    causes: [
+      "Görseller gerçek görüntüleme boyutundan büyük servis ediliyor olabilir.",
+      "Görsel sıkıştırma uygulanmamış olabilir.",
+      "Eski JPG/PNG formatları kullanılıyor olabilir.",
+      "CDN veya image optimization pipeline eksik olabilir.",
+    ],
   },
   "uses-webp-images": {
     title: "Modern görsel formatları kullanılmıyor",
     desc: "WebP veya AVIF gibi modern formatlar kullanılmadığı için görsel dosya boyutları yüksek kalıyor.",
-    solution:
-      "JPG/PNG görselleri WebP veya AVIF formatında sunun.",
+    solution: "JPG/PNG görselleri WebP veya AVIF formatında sunun.",
     actions: [
       "WebP/AVIF çıktıları oluşturun.",
       "Picture elementi veya CDN format dönüşümü kullanın.",
       "Eski formatları fallback olarak bırakın.",
+    ],
+    causes: [
+      "Görseller JPG/PNG olarak servis ediliyor olabilir.",
+      "CDN format dönüşümü aktif olmayabilir.",
+      "Picture/source fallback yapısı kurulmamış olabilir.",
+      "Image pipeline modern format üretmiyor olabilir.",
     ],
   },
   "uses-responsive-images": {
@@ -184,6 +249,12 @@ const auditTranslations: Record<
       "Mobil için daha küçük görsel varyasyonları üretin.",
       "Next.js Image benzeri optimizasyon yapıları kullanın.",
     ],
+    causes: [
+      "srcset veya sizes değerleri eksik olabilir.",
+      "Mobil cihazlara desktop boyutlu görsel gönderiliyor olabilir.",
+      "Image component optimizasyonu kullanılmıyor olabilir.",
+      "Farklı breakpointler için görsel varyasyonları üretilmemiş olabilir.",
+    ],
   },
   "server-response-time": {
     title: "Sunucu yanıt süresi yüksek",
@@ -194,6 +265,12 @@ const auditTranslations: Record<
       "CDN cache yapılandırmasını kontrol edin.",
       "Backend sorgularını optimize edin.",
       "Statik sayfalar için cache stratejisi ekleyin.",
+    ],
+    causes: [
+      "HTML yanıtı cache’lenmiyor olabilir.",
+      "Backend veya veritabanı sorguları yavaş olabilir.",
+      "CDN yapılandırması eksik olabilir.",
+      "Sunucu konumu hedef kullanıcıya uzak olabilir.",
     ],
   },
   "dom-size": {
@@ -206,6 +283,12 @@ const auditTranslations: Record<
       "Uzun listelerde pagination veya virtual scroll kullanın.",
       "Gizli ama DOM’da kalan içerikleri azaltın.",
     ],
+    causes: [
+      "Gereksiz wrapper div kullanımı fazla olabilir.",
+      "Uzun listeler DOM’da tamamen render ediliyor olabilir.",
+      "Gizli tab/popup içerikleri DOM’da tutuluyor olabilir.",
+      "Component yapısı gereğinden fazla nested olabilir.",
+    ],
   },
   "third-party-summary": {
     title: "Üçüncü parti script yükü yüksek",
@@ -216,6 +299,12 @@ const auditTranslations: Record<
       "Gereksiz üçüncü parti scriptleri kaldırın.",
       "Scriptleri consent sonrası yükleyin.",
       "async/defer stratejisini uygulayın.",
+    ],
+    causes: [
+      "Analytics, chat, pixel veya embed scriptleri ilk yüklemede çalışıyor olabilir.",
+      "Üçüncü parti scriptler async/defer olmadan yükleniyor olabilir.",
+      "Kullanılmayan harici servis kodları sayfada kalmış olabilir.",
+      "Consent sonrası yükleme stratejisi uygulanmıyor olabilir.",
     ],
   },
   "bootup-time": {
@@ -228,6 +317,12 @@ const auditTranslations: Record<
       "Ağır kütüphaneler için alternatif kullanın.",
       "İlk yüklemede gerekmeyen kodları lazy yükleyin.",
     ],
+    causes: [
+      "JavaScript bundle boyutu büyük olabilir.",
+      "Ağır kütüphaneler ilk yüklemede parse ediliyor olabilir.",
+      "Dynamic import kullanılmıyor olabilir.",
+      "Client-side hydration yükü fazla olabilir.",
+    ],
   },
   "mainthread-work-breakdown": {
     title: "Main thread iş yükü fazla",
@@ -238,6 +333,12 @@ const auditTranslations: Record<
       "Uzun task oluşturan scriptleri tespit edin.",
       "DOM okuma/yazma işlemlerini gruplayın.",
       "Animasyonlarda transform ve opacity tercih edin.",
+    ],
+    causes: [
+      "Ana thread uzun JavaScript görevleriyle meşgul olabilir.",
+      "Layout thrashing oluşturan DOM okuma/yazma işlemleri olabilir.",
+      "Ağır animasyonlar layout veya paint maliyeti oluşturuyor olabilir.",
+      "Script, style ve render hesaplamaları aynı anda yoğunlaşıyor olabilir.",
     ],
   },
 };
@@ -342,6 +443,7 @@ function auditToFinding(audit: LighthouseAudit): PerformanceFinding | null {
     icon: level === "critical" ? "alert-triangle" : "zap",
     category: "performance",
     solution: translation.solution,
+    causes: translation.causes,
   };
 }
 
@@ -418,13 +520,13 @@ export async function analyzePerformance(
     .map((audit) => auditToFinding(audit))
     .filter(Boolean) as PerformanceFinding[];
 
-const mergedFindings = mergeDuplicateFindings(findings);
+  const mergedFindings = mergeDuplicateFindings(findings);
 
-return {
-  score: performanceScore,
-  vitals,
-  findings: mergedFindings,
-  suggestions: createSuggestions(mergedFindings),
-  raw: data,
-};
+  return {
+    score: performanceScore,
+    vitals,
+    findings: mergedFindings,
+    suggestions: createSuggestions(mergedFindings),
+    raw: data,
+  };
 }

@@ -33,6 +33,9 @@ type Finding = {
   icon: string;
   tone: FindingTone;
   solution: string;
+  causes?: string[];
+  affectedPages?: string[];
+  affectedCount?: number;
 };
 
 type Suggestion = {
@@ -681,6 +684,37 @@ export default function ReportPage() {
               title="Nasıl düzeltilir?"
               text={selectedFinding.solution}
             />
+            {selectedFinding.causes?.length ? (
+              <div className="rounded-xl border border-white/8 bg-[#080d18]/70 p-5">
+                <p className="text-[12px] font-extrabold tracking-[0.08em] text-[#aebcff] uppercase">
+                  Muhtemel Nedenler
+                </p>
+
+                <ul className="mt-4 space-y-2 text-[13px] font-medium leading-5 text-[#d2d8e6]">
+                  {selectedFinding.causes.map((cause) => (
+                    <li key={cause}>• {cause}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            {selectedFinding.affectedPages?.length ? (
+              <div className="rounded-xl border border-white/8 bg-[#080d18]/70 p-5">
+                <p className="text-[12px] font-extrabold tracking-[0.08em] text-[#aebcff] uppercase">
+                  Etkilenen Sayfalar
+                </p>
+
+                <div className="mt-4 space-y-2">
+                  {selectedFinding.affectedPages.map((page) => (
+                    <div
+                      key={page}
+                      className="rounded-lg border border-white/8 bg-white/5 px-3 py-2 text-[13px] font-bold text-[#dce2ef]"
+                    >
+                      {page}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </div>
         </Modal>
       )}
@@ -918,6 +952,7 @@ function FindingItem({
   level,
   icon,
   tone,
+  affectedCount,
   onClick,
 }: Finding & { onClick: () => void }) {
   const toneClass =
@@ -929,7 +964,7 @@ function FindingItem({
     <button
       type="button"
       onClick={onClick}
-      className="grid w-full cursor-pointer grid-cols-[24px_1fr_auto_14px] items-center gap-3 rounded-lg p-2 text-left transition hover:bg-white/4"
+      className="grid w-full cursor-pointer grid-cols-[24px_minmax(0,1fr)_auto_14px] items-start gap-3 rounded-lg p-2 text-left transition hover:bg-white/4"
     >
       <Icon
         name={icon}
@@ -944,6 +979,11 @@ function FindingItem({
         <p className="mt-1 truncate text-[11px] font-bold text-[#9ba5b8]">
           {desc}
         </p>
+        {affectedCount ? (
+          <p className="mt-1 text-[11px] font-extrabold text-[#aebcff]">
+            {affectedCount} sayfada tespit edildi
+          </p>
+        ) : null}
       </div>
       <span
         className={`rounded px-2 py-1 text-[10px] font-extrabold ${toneClass}`}
@@ -1743,7 +1783,6 @@ function buildScoreCards(
     return false;
   });
 }
-
 function normalizeFindings(rawFindings: unknown[]): Finding[] {
   return rawFindings.map((item) => {
     if (typeof item === "string") {
@@ -1755,6 +1794,9 @@ function normalizeFindings(rawFindings: unknown[]): Finding[] {
         tone: "orange",
         solution:
           "Bu bulguyu ilgili sayfa veya modül üzerinde inceleyip önerilen düzeltmeyi uygulayın.",
+        causes: [],
+        affectedPages: [],
+        affectedCount: 0,
       };
     }
 
@@ -1766,6 +1808,7 @@ function normalizeFindings(rawFindings: unknown[]): Finding[] {
       "medium";
 
     const tone = getFindingTone(severity);
+    const affectedPages = parseAffectedPages(record.affectedPages);
 
     return {
       title:
@@ -1786,6 +1829,9 @@ function normalizeFindings(rawFindings: unknown[]): Finding[] {
         getString(record.recommendation) ??
         getString(record.fix) ??
         "Bu bulguya bağlı dosya, sayfa veya komponenti kontrol ederek rapordaki önerileri uygulayın.",
+      causes: parseStringArrayValue(record.causes),
+      affectedPages,
+      affectedCount: getNumber(record.affectedCount) ?? affectedPages.length,
     };
   });
 }
@@ -2343,4 +2389,48 @@ function Icon({ name, className = "" }: { name: string; className?: string }) {
       {paths[name] ?? paths.grid}
     </svg>
   );
+}
+
+function parseAffectedPages(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item));
+  }
+
+  if (typeof value !== "string" || !value.trim()) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(value);
+
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed.map((item) => String(item));
+  } catch {
+    return [];
+  }
+}
+
+function parseStringArrayValue(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item));
+  }
+
+  if (typeof value !== "string" || !value.trim()) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(value);
+
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed.map((item) => String(item));
+  } catch {
+    return [];
+  }
 }

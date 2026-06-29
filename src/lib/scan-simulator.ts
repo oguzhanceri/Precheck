@@ -1,3 +1,7 @@
+import { analyzeResponsive } from "@/lib/responsive-analyzer";
+import { analyzeUx } from "@/lib/ux-analyzer";
+import { analyzeSecurity } from "@/lib/security-analyzer";
+import { analyzeAccessibility } from "@/lib/accessibility-analyzer";
 import type { PerformanceAnalysisResult } from "@/lib/performance-analyzer";
 import { analyzePerformance } from "@/lib/performance-analyzer";
 import { analyzeSeo } from "@/lib/seo-analyzer";
@@ -39,6 +43,9 @@ type ReportFinding = {
   category: string;
   tone: string;
   solution: string;
+  causes?: string[];
+  affectedPages?: string[];
+  affectedCount?: number;
 };
 
 type ReportVital = {
@@ -188,6 +195,11 @@ async function createReportData(scanId: string, report: ReportData) {
         category: finding.category,
         tone: finding.tone,
         solution: finding.solution,
+        causes: finding.causes ? JSON.stringify(finding.causes) : null,
+        affectedPages: finding.affectedPages
+          ? JSON.stringify(finding.affectedPages)
+          : null,
+        affectedCount: finding.affectedCount ?? null,
       })),
     });
   }
@@ -227,9 +239,9 @@ async function buildRealReport(scan: ScanSeed): Promise<ReportData> {
 
   let performanceScore = 0;
   let seoScore = 0;
-  const accessibilityScore = 0;
-  const uxScore = 0;
-  const securityScore = 0;
+  let accessibilityScore = 0;
+  let uxScore = 0;
+  let securityScore = 0;
 
   let findings: ReportFinding[] = [];
   let vitals: ReportVital[] = [];
@@ -237,6 +249,16 @@ async function buildRealReport(scan: ScanSeed): Promise<ReportData> {
 
   const shouldRunPerformance = isModuleEnabled(activeModules, "performance");
   const shouldRunSeo = isModuleEnabled(activeModules, "seo");
+  const shouldRunAccessibility = isModuleEnabled(activeModules, "accessibility");
+  const shouldRunSecurity = isModuleEnabled(activeModules, "security");
+
+  const shouldRunUx =
+    isModuleEnabled(activeModules, "ux") ||
+    isModuleEnabled(activeModules, "interaction") ||
+    isModuleEnabled(activeModules, "visual") ||
+    isModuleEnabled(activeModules, "forms");
+
+  const shouldRunResponsive = isModuleEnabled(activeModules, "responsive");
 
   if (shouldRunPerformance) {
     try {
@@ -258,34 +280,40 @@ async function buildRealReport(scan: ScanSeed): Promise<ReportData> {
         mapPerformanceVitalToReportVital(vital, firstPerformanceResult.score),
       );
 
-      const allPerformanceFindings = performanceResults.flatMap((result) =>
-        result.findings.map((finding) => ({
-          title: finding.title,
-          description: finding.desc,
-          level: normalizeFindingLevel(finding.level),
-          category: "Performance",
-          tone: getToneFromLevel(finding.level),
-          solution: finding.solution,
-        })),
+      const allPerformanceFindings = performanceResults.flatMap(
+        (result, index) =>
+          result.findings.map((finding) => ({
+            title: finding.title,
+            description: finding.desc,
+            level: normalizeFindingLevel(finding.level),
+            category: "Performance",
+            tone: getToneFromLevel(finding.level),
+            solution: finding.solution,
+            causes: finding.causes ?? [],
+            affectedPages: [
+              sitemapPages[index]?.path ?? getPathFromUrl(scan.url),
+            ],
+            affectedCount: 1,
+          })),
       );
 
       findings = [...findings, ...dedupeFindings(allPerformanceFindings)];
 
-    pages = sitemapPages.map((page, index) =>
-  buildSinglePageResult({
-    url: page.url,
-    score: performanceResults[index]?.score ?? 0,
-    findings:
-      performanceResults[index]?.findings.map((finding) => ({
-        title: finding.title,
-        description: finding.desc,
-        level: normalizeFindingLevel(finding.level),
-        category: "Performance",
-        tone: getToneFromLevel(finding.level),
-        solution: finding.solution,
-      })) ?? [],
-  }),
-);
+      pages = sitemapPages.map((page, index) =>
+        buildSinglePageResult({
+          url: page.url,
+          score: performanceResults[index]?.score ?? 0,
+          findings:
+            performanceResults[index]?.findings.map((finding) => ({
+              title: finding.title,
+              description: finding.desc,
+              level: normalizeFindingLevel(finding.level),
+              category: "Performance",
+              tone: getToneFromLevel(finding.level),
+              solution: finding.solution,
+            })) ?? [],
+        }),
+      );
     } catch (error) {
       const message =
         error instanceof Error
@@ -324,20 +352,22 @@ async function buildRealReport(scan: ScanSeed): Promise<ReportData> {
 
       seoScore = seoResult.score;
 
-      const seoFindings: ReportFinding[] = seoResult.findings.map(
-        (finding) => ({
+      findings = [
+        ...findings,
+        ...seoResult.findings.map((finding) => ({
           title: finding.title,
           description: finding.desc,
           level: normalizeFindingLevel(finding.level),
           category: "SEO",
           tone: getToneFromLevel(finding.level),
           solution: finding.solution,
-        }),
-      );
+          causes: finding.causes ?? [],
+          affectedPages: finding.affectedPages ?? [],
+          affectedCount: finding.affectedCount ?? 0,
+        })),
+      ];
 
-      findings = [...findings, ...seoFindings];
-
-      const seoPages: ReportPage[] = seoResult.pages.map((page) => ({
+      const seoPages = seoResult.pages.map((page) => ({
         path: page.path,
         score: page.score,
         critical: page.critical,
@@ -345,9 +375,7 @@ async function buildRealReport(scan: ScanSeed): Promise<ReportData> {
         lastChecked: page.check,
       }));
 
-      if (seoPages.length) {
-        pages = seoPages;
-      }
+      if (seoPages.length) pages = seoPages;
     } catch (error) {
       const message =
         error instanceof Error
@@ -377,6 +405,222 @@ async function buildRealReport(scan: ScanSeed): Promise<ReportData> {
           },
         ];
       }
+    }
+  }
+
+  if (shouldRunAccessibility) {
+    try {
+      const accessibilityResult = await analyzeAccessibility(scan.url, {
+        selectedPages: sitemapPages.map((page) => page.path),
+      });
+
+      accessibilityScore = accessibilityResult.score;
+
+      findings = [
+        ...findings,
+        ...accessibilityResult.findings.map((finding) => ({
+          title: finding.title,
+          description: finding.desc,
+          level: normalizeFindingLevel(finding.level),
+          category: "Accessibility",
+          tone: getToneFromLevel(finding.level),
+          solution: finding.solution,
+          causes: finding.causes ?? [],
+          affectedPages: finding.affectedPages ?? [],
+          affectedCount: finding.affectedCount ?? 0,
+        })),
+      ];
+
+      const accessibilityPages = accessibilityResult.pages.map((page) => ({
+        path: page.path,
+        score: page.score,
+        critical: page.critical,
+        warning: page.warning,
+        lastChecked: page.check,
+      }));
+
+      if (accessibilityPages.length && !pages.length) {
+        pages = accessibilityPages;
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Accessibility analizi sırasında bilinmeyen bir hata oluştu.";
+
+      accessibilityScore = 0;
+
+      findings.push({
+        title: "Accessibility analizi tamamlanamadı",
+        description: message,
+        level: "ORTA",
+        category: "Accessibility",
+        tone: "orange",
+        solution:
+          "Hedef sayfanın HTML çıktısını, bot erişimini ve sayfa erişilebilirliğini kontrol edin.",
+      });
+    }
+  }
+
+  if (shouldRunSecurity) {
+    try {
+      const securityResult = await analyzeSecurity(scan.url, {
+        selectedPages: sitemapPages.map((page) => page.path),
+      });
+
+      securityScore = securityResult.score;
+
+      findings = [
+        ...findings,
+        ...securityResult.findings.map((finding) => ({
+          title: finding.title,
+          description: finding.desc,
+          level: normalizeFindingLevel(finding.level),
+          category: "Security",
+          tone: getToneFromLevel(finding.level),
+          solution: finding.solution,
+          causes: finding.causes ?? [],
+          affectedPages: finding.affectedPages ?? [],
+          affectedCount: finding.affectedCount ?? 0,
+        })),
+      ];
+
+      const securityPages = securityResult.pages.map((page) => ({
+        path: page.path,
+        score: page.score,
+        critical: page.critical,
+        warning: page.warning,
+        lastChecked: page.check,
+      }));
+
+      if (securityPages.length && !pages.length) {
+        pages = securityPages;
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Security analizi sırasında bilinmeyen bir hata oluştu.";
+
+      securityScore = 0;
+
+      findings.push({
+        title: "Security analizi tamamlanamadı",
+        description: message,
+        level: "ORTA",
+        category: "Security",
+        tone: "orange",
+        solution:
+          "HTTP response headerlarını, sunucu yapılandırmasını ve CDN ayarlarını kontrol edin.",
+      });
+    }
+  }
+
+  if (shouldRunUx) {
+    try {
+      const uxResult = await analyzeUx(scan.url, {
+        selectedPages: sitemapPages.map((page) => page.path),
+      });
+
+      uxScore = uxResult.score;
+
+      findings = [
+        ...findings,
+        ...uxResult.findings.map((finding) => ({
+          title: finding.title,
+          description: finding.desc,
+          level: normalizeFindingLevel(finding.level),
+          category: "UX",
+          tone: getToneFromLevel(finding.level),
+          solution: finding.solution,
+          causes: finding.causes ?? [],
+          affectedPages: finding.affectedPages ?? [],
+          affectedCount: finding.affectedCount ?? 0,
+        })),
+      ];
+
+      const uxPages = uxResult.pages.map((page) => ({
+        path: page.path,
+        score: page.score,
+        critical: page.critical,
+        warning: page.warning,
+        lastChecked: page.check,
+      }));
+
+      if (uxPages.length && !pages.length) {
+        pages = uxPages;
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "UX analizi sırasında bilinmeyen bir hata oluştu.";
+
+      uxScore = 0;
+
+      findings.push({
+        title: "UX analizi tamamlanamadı",
+        description: message,
+        level: "ORTA",
+        category: "UX",
+        tone: "orange",
+        solution:
+          "Hedef sayfanın HTML çıktısını, form yapılarını ve navigasyon alanlarını kontrol edin.",
+      });
+    }
+  }
+
+  if (shouldRunResponsive) {
+    try {
+      const responsiveResult = await analyzeResponsive(scan.url, {
+        selectedPages: sitemapPages.map((page) => page.path),
+      });
+
+      findings = [
+        ...findings,
+        ...responsiveResult.findings.map((finding) => ({
+          title: finding.title,
+          description: finding.desc,
+          level: normalizeFindingLevel(finding.level),
+          category: "Responsive",
+          tone: getToneFromLevel(finding.level),
+          solution: finding.solution,
+          causes: finding.causes ?? [],
+          affectedPages: finding.affectedPages ?? [],
+          affectedCount: finding.affectedCount ?? 0,
+        })),
+      ];
+
+      const responsivePages = responsiveResult.pages.map((page) => ({
+        path: page.path,
+        score: page.score,
+        critical: page.critical,
+        warning: page.warning,
+        lastChecked: page.check,
+      }));
+
+      if (responsivePages.length && !pages.length) {
+        pages = responsivePages;
+      }
+
+      uxScore = uxScore
+        ? Math.round((uxScore + responsiveResult.score) / 2)
+        : responsiveResult.score;
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Responsive analizi sırasında bilinmeyen bir hata oluştu.";
+
+      findings.push({
+        title: "Responsive analizi tamamlanamadı",
+        description: message,
+        level: "ORTA",
+        category: "Responsive",
+        tone: "orange",
+        solution:
+          "Sayfanın HTML çıktısını, CSS yapılarını ve responsive breakpoint ayarlarını kontrol edin.",
+      });
     }
   }
 
@@ -749,16 +993,29 @@ function dedupeFindings(findings: ReportFinding[]) {
     const existing = map.get(key);
 
     if (!existing) {
-      map.set(key, finding);
+      map.set(key, {
+        ...finding,
+        affectedPages: finding.affectedPages ?? [],
+        affectedCount: finding.affectedPages?.length ?? 0,
+      });
       return;
     }
+
+    const existingPages = existing.affectedPages ?? [];
+    const currentPages = finding.affectedPages ?? [];
+
+    const mergedPages = Array.from(
+      new Set([...existingPages, ...currentPages]),
+    );
 
     const existingPriority = levelPriority[existing.level] ?? 0;
     const currentPriority = levelPriority[finding.level] ?? 0;
 
-    if (currentPriority > existingPriority) {
-      map.set(key, finding);
-    }
+    map.set(key, {
+      ...(currentPriority > existingPriority ? finding : existing),
+      affectedPages: mergedPages,
+      affectedCount: mergedPages.length,
+    });
   });
 
   return Array.from(map.values());

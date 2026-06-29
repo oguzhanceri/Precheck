@@ -35,6 +35,9 @@ type SerializedFinding = {
   category: string;
   tone: string;
   solution: string;
+  affectedPages: string[];
+  affectedCount: number;
+  causes: string[];
   createdAt: Date;
 };
 
@@ -180,10 +183,14 @@ function serializeScan(scan: ScanWithRelations) {
       solution:
         finding.solution ??
         "Bu bulgu için ilgili sayfa veya modül üzerinde manuel kontrol yapın.",
+      affectedPages: finding.affectedPages
+        ? JSON.parse(finding.affectedPages)
+        : [],
+      affectedCount: finding.affectedCount ?? 0,
+      causes: finding.causes ? JSON.parse(finding.causes) : [],
       createdAt: finding.createdAt,
     }),
   );
-
   return {
     id: scan.id,
     url: scan.url,
@@ -514,7 +521,6 @@ function buildSeoSuggestions(findings: SerializedFinding[]): Suggestion[] {
 
   return suggestions;
 }
-
 function buildUxSuggestions(findings: SerializedFinding[]): Suggestion[] {
   const uxFindings = findings.filter((finding) => {
     const value = normalizeText(`${finding.category} ${finding.title}`);
@@ -524,25 +530,287 @@ function buildUxSuggestions(findings: SerializedFinding[]): Suggestion[] {
       value.includes("responsive") ||
       value.includes("form") ||
       value.includes("interaction") ||
+      value.includes("visual") ||
+      value.includes("gorsel") ||
       value.includes("mobil") ||
       value.includes("tas") ||
-      value.includes("spacing")
+      value.includes("spacing") ||
+      value.includes("link") ||
+      value.includes("autocomplete") ||
+      value.includes("placeholder") ||
+      value.includes("paragraf") ||
+      value.includes("cta") ||
+      value.includes("navigasyon") ||
+      value.includes("tablo") ||
+      value.includes("medya") ||
+      value.includes("breakpoint") ||
+      value.includes("genis") ||
+      value.includes("sabit genislik") ||
+      value.includes("min-width") ||
+      value.includes("overflow")
     );
   });
 
   if (!uxFindings.length) return [];
 
-  return [
-    {
-      title: "Mobil deneyim sorunlarını giderin",
-      desc: "Mobil viewport, form ve etkileşim sorunları kullanıcı deneyimini doğrudan etkiler.",
+  const suggestions: Suggestion[] = [];
+
+  const hasEmptyLinks = uxFindings.some((finding) => {
+    const value = normalizeText(finding.title);
+
+    return (
+      value.includes("bos") ||
+      value.includes("aciklamasiz") ||
+      value.includes("link")
+    );
+  });
+
+  const hasAutocomplete = uxFindings.some((finding) => {
+    const value = normalizeText(finding.title);
+
+    return value.includes("autocomplete");
+  });
+
+  const hasPlaceholderLabel = uxFindings.some((finding) => {
+    const value = normalizeText(finding.title);
+
+    return value.includes("placeholder") || value.includes("label");
+  });
+
+  const hasLongParagraphs = uxFindings.some((finding) => {
+    const value = normalizeText(finding.title);
+
+    return value.includes("uzun paragraf") || value.includes("paragraf");
+  });
+
+  const hasNavigation = uxFindings.some((finding) => {
+    const value = normalizeText(finding.title);
+
+    return value.includes("navigasyon") || value.includes("menu");
+  });
+
+  const hasCta = uxFindings.some((finding) => {
+    const value = normalizeText(finding.title);
+
+    return value.includes("cta") || value.includes("aksiyon");
+  });
+
+  const hasViewport = uxFindings.some((finding) => {
+    const value = normalizeText(finding.title);
+
+    return value.includes("viewport") || value.includes("mobil");
+  });
+
+  const hasResponsiveTable = uxFindings.some((finding) => {
+    const value = normalizeText(finding.title);
+
+    return value.includes("tablo responsive") || value.includes("tablo");
+  });
+
+  const hasWideMedia = uxFindings.some((finding) => {
+    const value = normalizeText(finding.title);
+
+    return (
+      value.includes("genis medya") ||
+      value.includes("medya elemanlari") ||
+      value.includes("medya")
+    );
+  });
+
+  const hasBreakpoint = uxFindings.some((finding) => {
+    const value = normalizeText(finding.title);
+
+    return value.includes("breakpoint");
+  });
+
+  const hasFixedWidth = uxFindings.some((finding) => {
+    const value = normalizeText(finding.title);
+
+    return value.includes("sabit genislik") || value.includes("fixed width");
+  });
+
+  const hasMinWidth = uxFindings.some((finding) => {
+    const value = normalizeText(finding.title);
+
+    return value.includes("min-width");
+  });
+
+  const hasOverflowX = uxFindings.some((finding) => {
+    const value = normalizeText(finding.title);
+
+    return value.includes("overflow-x") || value.includes("overflow");
+  });
+
+  if (hasEmptyLinks) {
+    suggestions.push({
+      title: "Link açıklamalarını tamamlayın",
+      desc: "Boş veya açıklamasız linkler kullanıcıların ve ekran okuyucuların link amacını anlamasını zorlaştırır.",
+      impact: "Orta",
+      actions: [
+        "İkon linklere aria-label ekleyin.",
+        "Görsel linklerde alt metin veya görünür açıklama kullanın.",
+        "Sadece ikonla verilen aksiyonları metinle destekleyin.",
+      ],
+    });
+  }
+
+  if (hasAutocomplete) {
+    suggestions.push({
+      title: "Form otomatik doldurma deneyimini iyileştirin",
+      desc: "Autocomplete eksik olduğunda kullanıcılar ad, e-posta ve telefon gibi alanları tekrar tekrar manuel doldurmak zorunda kalır.",
+      impact: "Orta",
+      actions: [
+        'E-posta alanlarında autocomplete="email" kullanın.',
+        'Telefon alanlarında autocomplete="tel" kullanın.',
+        "Ad-soyad alanlarında name, given-name veya family-name değerlerini kullanın.",
+      ],
+    });
+  }
+
+  if (hasPlaceholderLabel) {
+    suggestions.push({
+      title: "Form label yapısını güçlendirin",
+      desc: "Placeholder metni kalıcı olmadığı için kullanıcı inputa yazmaya başladığında alanın ne istediğini unutabilir.",
+      impact: "Orta",
+      actions: [
+        "Placeholder yerine görünür label kullanın.",
+        "Label kullanılamıyorsa aria-label veya aria-labelledby ekleyin.",
+        "Input id değeri ile label for değerinin eşleştiğinden emin olun.",
+      ],
+    });
+  }
+
+  if (hasLongParagraphs) {
+    suggestions.push({
+      title: "İçerik okunabilirliğini artırın",
+      desc: "Çok uzun paragraflar özellikle mobilde taranabilirliği ve okuma konforunu düşürür.",
+      impact: "Düşük",
+      actions: [
+        "Uzun paragrafları daha kısa bloklara bölün.",
+        "Ara başlık, madde listesi ve vurgu metinleri kullanın.",
+        "Mobilde 3-5 satırı aşan metin bloklarını sadeleştirin.",
+      ],
+    });
+  }
+
+  if (hasNavigation) {
+    suggestions.push({
+      title: "Navigasyon seçeneklerini sadeleştirin",
+      desc: "Çok fazla menü linki kullanıcının karar verme süresini artırabilir ve mobil menüyü karmaşıklaştırabilir.",
+      impact: "Düşük",
+      actions: [
+        "Ana menüde sadece en kritik sayfaları bırakın.",
+        "İkincil linkleri footer veya alt menü alanına taşıyın.",
+        "Mobil menüde kategori bazlı gruplama kullanın.",
+      ],
+    });
+  }
+
+  if (hasCta) {
+    suggestions.push({
+      title: "Sayfa aksiyonunu belirginleştirin",
+      desc: "Belirgin CTA olmadığında kullanıcı sayfada hangi adımı atması gerektiğini kolayca anlayamayabilir.",
+      impact: "Orta",
+      actions: [
+        "Hero alanına net bir CTA ekleyin.",
+        "CTA metnini 'Teklif Al', 'Demo İste', 'İletişime Geç' gibi aksiyon odaklı yazın.",
+        "Birincil ve ikincil CTA stillerini görsel olarak ayırın.",
+      ],
+    });
+  }
+
+  if (hasViewport) {
+    suggestions.push({
+      title: "Mobil viewport yapılandırmasını düzeltin",
+      desc: "Viewport eksik olduğunda sayfa mobil cihazlarda yanlış ölçeklenebilir.",
       impact: "Yüksek",
       actions: [
-        "Sabit width verilen elemanları kontrol edin.",
-        "Form hata mesajlarını alan bazlı ve açıklayıcı hale getirin.",
+        '<meta name="viewport" content="width=device-width, initial-scale=1"> etiketini ekleyin.',
+        "Mobil kırılımlarda sayfanın yatay scroll üretmediğini kontrol edin.",
+        "Sabit genişlik verilen elemanları responsive hale getirin.",
       ],
-    },
-  ];
+    });
+  }
+
+  if (hasResponsiveTable) {
+    suggestions.push({
+      title: "Mobil tablo görünümünü düzenleyin",
+      desc: "Tablolar küçük ekranlarda yatay taşma oluşturabilir ve kullanıcıyı zorunlu yatay kaydırmaya yönlendirebilir.",
+      impact: "Orta",
+      actions: [
+        "Tabloları overflow-x: auto olan bir wrapper içine alın.",
+        "Mobilde tabloyu kart yapısına dönüştürmeyi değerlendirin.",
+        "Kolon sayısını ve minimum genişlikleri mobilde azaltın.",
+      ],
+    });
+  }
+
+  if (hasWideMedia) {
+    suggestions.push({
+      title: "Medya elemanlarını responsive hale getirin",
+      desc: "Geniş görsel, video veya iframe elemanları küçük ekranlarda taşma ve yatay scroll riski oluşturabilir.",
+      impact: "Orta",
+      actions: [
+        "Görsel, video ve iframe elemanlarına max-width: 100% uygulayın.",
+        "height: auto kullanarak oranların bozulmasını önleyin.",
+        "Embed iframe yapıları için responsive aspect-ratio wrapper kullanın.",
+      ],
+    });
+  }
+
+  if (hasBreakpoint) {
+    suggestions.push({
+      title: "Responsive breakpoint kontrollerini güçlendirin",
+      desc: "Sayfada breakpoint izi bulunmaması mobil ve tablet görünümde kırılma riskini artırabilir.",
+      impact: "Düşük",
+      actions: [
+        "320px, 375px, 768px ve 1024px viewportlarda manuel kontrol yapın.",
+        "Mobilde grid, tablo ve medya alanlarının taşmadığını doğrulayın.",
+        "Harici CSS kullanılıyorsa breakpointlerin doğru yüklendiğini kontrol edin.",
+      ],
+    });
+  }
+
+  if (hasFixedWidth) {
+    suggestions.push({
+      title: "Sabit genişlikleri responsive hale getirin",
+      desc: "Büyük px tabanlı width değerleri küçük ekranlarda taşma ve kırılma oluşturabilir.",
+      impact: "Yüksek",
+      actions: [
+        "width değerlerini max-width veya width: 100% ile sınırlandırın.",
+        "Desktop ölçüleri için breakpoint bazlı class kullanın.",
+        "Kart, tablo ve medya alanlarında clamp() veya responsive grid kullanın.",
+      ],
+    });
+  }
+
+  if (hasMinWidth) {
+    suggestions.push({
+      title: "min-width kaynaklı taşma riskini azaltın",
+      desc: "Büyük min-width değerleri mobilde elemanların daralmasını engelleyebilir.",
+      impact: "Yüksek",
+      actions: [
+        "Mobil breakpointlerde min-width değerlerini kaldırın.",
+        "Elemanlara max-width: 100% ekleyin.",
+        "Grid ve flex çocuklarında min-width: 0 kullanımını değerlendirin.",
+      ],
+    });
+  }
+
+  if (hasOverflowX) {
+    suggestions.push({
+      title: "Yatay taşmanın gerçek sebebini düzeltin",
+      desc: "overflow-x kullanımı taşmayı gizleyebilir; asıl genişlik problemi çözülmediğinde mobil deneyim bozulabilir.",
+      impact: "Orta",
+      actions: [
+        "overflow-x: hidden yerine taşan elemanı tespit edin.",
+        "Geniş tablo, medya ve slider alanlarını ayrı ayrı kontrol edin.",
+        "Kök layout içinde 100vw + padding kaynaklı taşma olup olmadığını inceleyin.",
+      ],
+    });
+  }
+
+  return suggestions.slice(0, 5);
 }
 
 function buildPerformanceSuggestions(

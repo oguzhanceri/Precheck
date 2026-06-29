@@ -7,6 +7,9 @@ type SeoFinding = {
   icon: string;
   category: "seo";
   solution: string;
+  causes: string[];
+  affectedPages: string[];
+  affectedCount: number;
 };
 
 type SeoSuggestion = {
@@ -42,6 +45,7 @@ export async function analyzeSeo(url: string, options: SeoAnalyzeOptions = {}) {
   const targetUrls = buildTargetUrls(baseUrl, options.selectedPages);
 
   const globalChecks = await runGlobalSeoChecks(baseUrl);
+
   const pageResults = await Promise.all(
     targetUrls.map((targetUrl, index) =>
       analyzeSeoPage(targetUrl, globalChecks, index),
@@ -148,156 +152,254 @@ function analyzeHtml(
   const findings: SeoFinding[] = [];
 
   if (!title) {
-    findings.push({
-      title: "Title etiketi eksik",
-      desc: "Sayfada <title> etiketi bulunamadı.",
-      level: "critical",
-      icon: "warning",
-      category: "seo",
-      solution:
-        "Her sayfaya benzersiz, açıklayıcı ve 50-60 karakter aralığında title etiketi ekleyin.",
-    });
+    findings.push(
+      createSeoFinding({
+        title: "Title etiketi eksik",
+        desc: "Sayfada <title> etiketi bulunamadı.",
+        level: "critical",
+        icon: "warning",
+        solution:
+          "Her sayfaya benzersiz, açıklayıcı ve 50-60 karakter aralığında title etiketi ekleyin.",
+        causes: [
+          "Sayfa template’i içinde title etiketi hiç basılmıyor olabilir.",
+          "CMS tarafında sayfa başlığı alanı boş bırakılmış olabilir.",
+          "Metadata üretimi bu sayfa türü için çalışmıyor olabilir.",
+        ],
+      }),
+    );
   } else if (title.length < 20 || title.length > 65) {
-    findings.push({
-      title: "Title uzunluğu ideal değil",
-      desc: `Title uzunluğu ${title.length} karakter. İdeal aralık genellikle 50-60 karakterdir.`,
-      level: "medium",
-      icon: "timer",
-      category: "seo",
-      solution:
-        "Title metnini sayfanın ana konusunu anlatacak şekilde 50-60 karakter civarında düzenleyin.",
-    });
+    findings.push(
+      createSeoFinding({
+        title: "Title uzunluğu ideal değil",
+        desc: `Title uzunluğu ${title.length} karakter. İdeal aralık genellikle 50-60 karakterdir.`,
+        level: "medium",
+        icon: "timer",
+        solution:
+          "Title metnini sayfanın ana konusunu anlatacak şekilde 50-60 karakter civarında düzenleyin.",
+        causes: [
+          "Title alanı çok kısa veya çok uzun girilmiş olabilir.",
+          "Sayfa başlığı otomatik üretildiği için SEO ideal aralığına göre optimize edilmemiş olabilir.",
+          "Marka adı veya ek ifadeler title uzunluğunu artırıyor olabilir.",
+        ],
+      }),
+    );
   }
 
   if (!metaDescription) {
-    findings.push({
-      title: "Meta description eksik",
-      desc: "Sayfada meta description etiketi bulunamadı.",
-      level: "high",
-      icon: "warning",
-      category: "seo",
-      solution:
-        "Sayfaya özgün, 140-160 karakter aralığında meta description ekleyin.",
-    });
+    findings.push(
+      createSeoFinding({
+        title: "Meta description eksik",
+        desc: "Sayfada meta description etiketi bulunamadı.",
+        level: "high",
+        icon: "warning",
+        solution:
+          "Sayfaya özgün, 140-160 karakter aralığında meta description ekleyin.",
+        causes: [
+          "Sayfaya özel meta description tanımlanmamış olabilir.",
+          "SEO component’i veya metadata üretimi bu sayfada çalışmıyor olabilir.",
+          "CMS tarafında açıklama alanı boş bırakılmış olabilir.",
+        ],
+      }),
+    );
   } else if (metaDescription.length < 70 || metaDescription.length > 170) {
-    findings.push({
-      title: "Meta description uzunluğu ideal değil",
-      desc: `Meta description uzunluğu ${metaDescription.length} karakter.`,
-      level: "medium",
-      icon: "timer",
-      category: "seo",
-      solution:
-        "Meta description metnini sayfayı özetleyen 140-160 karakterlik özgün bir açıklama haline getirin.",
-    });
+    findings.push(
+      createSeoFinding({
+        title: "Meta description uzunluğu ideal değil",
+        desc: `Meta description uzunluğu ${metaDescription.length} karakter.`,
+        level: "medium",
+        icon: "timer",
+        solution:
+          "Meta description metnini sayfayı özetleyen 140-160 karakterlik özgün bir açıklama haline getirin.",
+        causes: [
+          "Meta description alanı SEO için ideal uzunlukta yazılmamış olabilir.",
+          "Açıklama metni otomatik üretildiği için gereğinden kısa veya uzun olabilir.",
+          "CMS içeriği doğrudan description alanına basılıyor olabilir.",
+        ],
+      }),
+    );
   }
 
   if (h1Matches.length === 0) {
-    findings.push({
-      title: "H1 etiketi eksik",
-      desc: "Sayfada ana başlık için H1 etiketi bulunamadı.",
-      level: "high",
-      icon: "warning",
-      category: "seo",
-      solution: "Sayfanın ana konusunu anlatan tek bir H1 etiketi ekleyin.",
-    });
+    findings.push(
+      createSeoFinding({
+        title: "H1 etiketi eksik",
+        desc: "Sayfada ana başlık için H1 etiketi bulunamadı.",
+        level: "high",
+        icon: "warning",
+        solution: "Sayfanın ana konusunu anlatan tek bir H1 etiketi ekleyin.",
+        causes: [
+          "Sayfa başlığı H1 yerine div, span veya başka bir etiketle yazılmış olabilir.",
+          "Hero veya içerik component’i H1 üretmiyor olabilir.",
+          "CMS tarafındaki başlık alanı boş bırakılmış olabilir.",
+        ],
+      }),
+    );
   }
 
   if (h1Matches.length > 1) {
-    findings.push({
-      title: "Birden fazla H1 kullanılmış",
-      desc: `Sayfada ${h1Matches.length} adet H1 etiketi bulundu.`,
-      level: "medium",
-      icon: "timer",
-      category: "seo",
-      solution:
-        "Ana konu için tek H1 kullanın. Diğer başlıkları H2/H3 hiyerarşisine taşıyın.",
-    });
+    findings.push(
+      createSeoFinding({
+        title: "Birden fazla H1 kullanılmış",
+        desc: `Sayfada ${h1Matches.length} adet H1 etiketi bulundu.`,
+        level: "medium",
+        icon: "timer",
+        solution:
+          "Ana konu için tek H1 kullanın. Diğer başlıkları H2/H3 hiyerarşisine taşıyın.",
+        causes: [
+          "Birden fazla component kendi içinde H1 kullanıyor olabilir.",
+          "Hero, içerik veya kart başlıkları yanlışlıkla H1 olarak işaretlenmiş olabilir.",
+          "Sayfa template’i ile CMS içeriği birlikte H1 üretiyor olabilir.",
+        ],
+      }),
+    );
   }
 
   if (!canonical) {
-    findings.push({
-      title: "Canonical etiketi eksik",
-      desc: "Sayfada canonical link etiketi bulunamadı.",
-      level: "medium",
-      icon: "link",
-      category: "seo",
-      solution:
-        "Kopya içerik riskini azaltmak için sayfanın doğru canonical URL’ini ekleyin.",
-    });
+    findings.push(
+      createSeoFinding({
+        title: "Canonical etiketi eksik",
+        desc: "Sayfada canonical link etiketi bulunamadı.",
+        level: "medium",
+        icon: "link",
+        solution:
+          "Kopya içerik riskini azaltmak için sayfanın doğru canonical URL’ini ekleyin.",
+        causes: [
+          "SEO metadata component’i canonical üretmiyor olabilir.",
+          "Sayfa URL’i dinamik üretildiği için canonical alanı boş kalmış olabilir.",
+          "Layout seviyesinde canonical etiketi tanımlanmamış olabilir.",
+        ],
+      }),
+    );
   }
 
   if (imagesWithoutAlt.length > 0) {
-    findings.push({
-      title: "Alt etiketi eksik görseller",
-      desc: `${imagesWithoutAlt.length} görselde alt attribute bulunamadı.`,
-      level: "medium",
-      icon: "image",
-      category: "seo",
-      solution:
-        "Anlam taşıyan görsellere açıklayıcı alt metin ekleyin. Dekoratif görsellerde alt değeri boş bırakılabilir.",
-    });
+    findings.push(
+      createSeoFinding({
+        title: "Alt etiketi eksik görseller",
+        desc: `${imagesWithoutAlt.length} görselde alt attribute bulunamadı.`,
+        level: "medium",
+        icon: "image",
+        solution:
+          "Anlam taşıyan görsellere açıklayıcı alt metin ekleyin. Dekoratif görsellerde alt değeri boş bırakılabilir.",
+        causes: [
+          "Görsel component’i alt attribute değerini zorunlu tutmuyor olabilir.",
+          "CMS tarafında görsel açıklama alanları boş bırakılmış olabilir.",
+          "Dekoratif olmayan görseller alt metinsiz eklenmiş olabilir.",
+        ],
+      }),
+    );
   }
 
   if (!globalChecks.robotsTxt) {
-    findings.push({
-      title: "robots.txt bulunamadı",
-      desc: "Site kök dizininde robots.txt dosyası tespit edilemedi.",
-      level: "low",
-      icon: "file",
-      category: "seo",
-      solution:
-        "Arama motoru botları için robots.txt dosyası oluşturun ve sitemap yolunu belirtin.",
-    });
+    findings.push(
+      createSeoFinding({
+        title: "robots.txt bulunamadı",
+        desc: "Site kök dizininde robots.txt dosyası tespit edilemedi.",
+        level: "low",
+        icon: "file",
+        solution:
+          "Arama motoru botları için robots.txt dosyası oluşturun ve sitemap yolunu belirtin.",
+        causes: [
+          "Public klasöründe robots.txt dosyası bulunmuyor olabilir.",
+          "Deployment sırasında robots.txt canlı ortama taşınmamış olabilir.",
+          "Sunucu robots.txt isteğine doğru cevap vermiyor olabilir.",
+        ],
+      }),
+    );
   }
 
   if (!globalChecks.sitemapXml) {
-    findings.push({
-      title: "sitemap.xml bulunamadı",
-      desc: "Site kök dizininde sitemap.xml dosyası tespit edilemedi.",
-      level: "medium",
-      icon: "file",
-      category: "seo",
-      solution:
-        "Arama motorlarının sayfaları daha kolay keşfetmesi için sitemap.xml oluşturun.",
-    });
+    findings.push(
+      createSeoFinding({
+        title: "sitemap.xml bulunamadı",
+        desc: "Site kök dizininde sitemap.xml dosyası tespit edilemedi.",
+        level: "medium",
+        icon: "file",
+        solution:
+          "Arama motorlarının sayfaları daha kolay keşfetmesi için sitemap.xml oluşturun.",
+        causes: [
+          "Sitemap üretimi projede henüz eklenmemiş olabilir.",
+          "sitemap.xml dosyası public dizinde bulunmuyor olabilir.",
+          "Dinamik sitemap route’u canlıda hata veriyor olabilir.",
+        ],
+      }),
+    );
   }
 
   if (!hasViewport) {
-    findings.push({
-      title: "Viewport meta etiketi eksik",
-      desc: "Mobil uyum için viewport meta etiketi bulunamadı.",
-      level: "medium",
-      icon: "mobile",
-      category: "seo",
-      solution:
-        '<meta name="viewport" content="width=device-width, initial-scale=1"> etiketi ekleyin.',
-    });
+    findings.push(
+      createSeoFinding({
+        title: "Viewport meta etiketi eksik",
+        desc: "Mobil uyum için viewport meta etiketi bulunamadı.",
+        level: "medium",
+        icon: "mobile",
+        solution:
+          '<meta name="viewport" content="width=device-width, initial-scale=1"> etiketi ekleyin.',
+        causes: [
+          "Head veya layout dosyasında viewport meta etiketi tanımlanmamış olabilir.",
+          "Mobil uyumluluk için gerekli temel meta etiketi eksik bırakılmış olabilir.",
+          "Custom document/head yapısı viewport değerini basmıyor olabilir.",
+        ],
+      }),
+    );
   }
 
   if (!hasOpenGraph) {
-    findings.push({
-      title: "OpenGraph etiketleri eksik",
-      desc: "Sosyal medya paylaşım önizlemeleri için og:* etiketleri bulunamadı.",
-      level: "low",
-      icon: "share",
-      category: "seo",
-      solution: "og:title, og:description ve og:image etiketlerini ekleyin.",
-    });
+    findings.push(
+      createSeoFinding({
+        title: "OpenGraph etiketleri eksik",
+        desc: "Sosyal medya paylaşım önizlemeleri için og:* etiketleri bulunamadı.",
+        level: "low",
+        icon: "share",
+        solution: "og:title, og:description ve og:image etiketlerini ekleyin.",
+        causes: [
+          "Sosyal paylaşım metadata alanları tanımlanmamış olabilir.",
+          "SEO component’i OpenGraph etiketlerini üretmiyor olabilir.",
+          "CMS tarafında paylaşım görseli veya açıklama alanları boş olabilir.",
+        ],
+      }),
+    );
   }
 
   if (!hasTwitterCard) {
-    findings.push({
-      title: "Twitter Card etiketleri eksik",
-      desc: "Twitter/X paylaşım önizlemeleri için twitter:* etiketleri bulunamadı.",
-      level: "low",
-      icon: "share",
-      category: "seo",
-      solution:
-        "twitter:card, twitter:title, twitter:description ve twitter:image etiketlerini ekleyin.",
-    });
+    findings.push(
+      createSeoFinding({
+        title: "Twitter Card etiketleri eksik",
+        desc: "Twitter/X paylaşım önizlemeleri için twitter:* etiketleri bulunamadı.",
+        level: "low",
+        icon: "share",
+        solution:
+          "twitter:card, twitter:title, twitter:description ve twitter:image etiketlerini ekleyin.",
+        causes: [
+          "Twitter/X paylaşım metadata alanları tanımlanmamış olabilir.",
+          "SEO component’i twitter:* etiketlerini üretmiyor olabilir.",
+          "Sosyal medya önizleme ayarları sadece OpenGraph ile sınırlı bırakılmış olabilir.",
+        ],
+      }),
+    );
   }
 
   return findings;
+}
+
+function createSeoFinding(
+  finding: Omit<
+    SeoFinding,
+    "category" | "causes" | "affectedPages" | "affectedCount"
+  > & {
+    causes?: string[];
+  },
+): SeoFinding {
+  return {
+    ...finding,
+    category: "seo",
+    causes: finding.causes ?? [
+      "Sayfada ilgili SEO alanı eksik, hatalı veya ideal aralıkta değil.",
+      "Bu alan CMS, layout ya da sayfa template’i içinde otomatik üretilmiyor olabilir.",
+    ],
+    affectedPages: [],
+    affectedCount: 0,
+  };
 }
 
 function buildTargetUrls(baseUrl: string, selectedPages?: string[]) {
@@ -352,23 +454,25 @@ function mergeFindings(pageResults: SinglePageSeoResult[]) {
       if (!existing) {
         map.set(key, {
           ...finding,
-          desc:
-            pageResults.length > 1
-              ? `${result.path}: ${finding.desc}`
-              : finding.desc,
+          affectedPages: [result.path],
+          affectedCount: 1,
         });
         return;
       }
 
-      if (pageResults.length > 1 && !existing.desc.includes(result.path)) {
-        existing.desc = `${existing.desc} | ${result.path}: ${finding.desc}`;
+      if (!existing.affectedPages.includes(result.path)) {
+        existing.affectedPages.push(result.path);
+        existing.affectedCount = existing.affectedPages.length;
       }
+
+      existing.causes = Array.from(
+        new Set([...existing.causes, ...finding.causes]),
+      );
     });
   });
 
   return Array.from(map.values());
 }
-
 function normalizeUrl(url: string) {
   const trimmed = url.trim();
 
