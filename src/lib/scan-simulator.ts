@@ -1,3 +1,6 @@
+import { analyzeForms } from "@/lib/form-analyzer";
+import { analyzeVisual } from "@/lib/visual-analyzer";
+import { analyzeInteraction } from "@/lib/interaction-analyzer";
 import { analyzeResponsive } from "@/lib/responsive-analyzer";
 import { analyzeUx } from "@/lib/ux-analyzer";
 import { analyzeSecurity } from "@/lib/security-analyzer";
@@ -249,16 +252,18 @@ async function buildRealReport(scan: ScanSeed): Promise<ReportData> {
 
   const shouldRunPerformance = isModuleEnabled(activeModules, "performance");
   const shouldRunSeo = isModuleEnabled(activeModules, "seo");
-  const shouldRunAccessibility = isModuleEnabled(activeModules, "accessibility");
+  const shouldRunAccessibility = isModuleEnabled(
+    activeModules,
+    "accessibility",
+  );
   const shouldRunSecurity = isModuleEnabled(activeModules, "security");
 
-  const shouldRunUx =
-    isModuleEnabled(activeModules, "ux") ||
-    isModuleEnabled(activeModules, "interaction") ||
-    isModuleEnabled(activeModules, "visual") ||
-    isModuleEnabled(activeModules, "forms");
+  const shouldRunUx = isModuleEnabled(activeModules, "ux");
 
   const shouldRunResponsive = isModuleEnabled(activeModules, "responsive");
+  const shouldRunInteraction = isModuleEnabled(activeModules, "interaction");
+  const shouldRunVisual = isModuleEnabled(activeModules, "visual");
+  const shouldRunForms = isModuleEnabled(activeModules, "forms");
 
   if (shouldRunPerformance) {
     try {
@@ -620,6 +625,168 @@ async function buildRealReport(scan: ScanSeed): Promise<ReportData> {
         tone: "orange",
         solution:
           "Sayfanın HTML çıktısını, CSS yapılarını ve responsive breakpoint ayarlarını kontrol edin.",
+      });
+    }
+  }
+
+  if (shouldRunInteraction) {
+    try {
+      const interactionResult = await analyzeInteraction(scan.url, {
+        selectedPages: sitemapPages.map((page) => page.path),
+      });
+
+      findings = [
+        ...findings,
+        ...interactionResult.findings.map((finding) => ({
+          title: finding.title,
+          description: finding.desc,
+          level: normalizeFindingLevel(finding.level),
+          category: "Interaction",
+          tone: getToneFromLevel(finding.level),
+          solution: finding.solution,
+          causes: finding.causes ?? [],
+          affectedPages: finding.affectedPages ?? [],
+          affectedCount: finding.affectedCount ?? 0,
+        })),
+      ];
+
+      const interactionPages = interactionResult.pages.map((page) => ({
+        path: page.path,
+        score: page.score,
+        critical: page.critical,
+        warning: page.warning,
+        lastChecked: page.check,
+      }));
+
+      if (interactionPages.length && !pages.length) {
+        pages = interactionPages;
+      }
+
+      uxScore = uxScore
+        ? Math.round((uxScore + interactionResult.score) / 2)
+        : interactionResult.score;
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Interaction analizi sırasında bilinmeyen bir hata oluştu.";
+
+      findings.push({
+        title: "Interaction analizi tamamlanamadı",
+        description: message,
+        level: "ORTA",
+        category: "Interaction",
+        tone: "orange",
+        solution:
+          "Etkileşimli elementleri, button/link yapılarını ve keyboard erişimini kontrol edin.",
+      });
+    }
+  }
+
+  if (shouldRunVisual) {
+    try {
+      const visualResult = await analyzeVisual(scan.url, {
+        selectedPages: sitemapPages.map((page) => page.path),
+      });
+
+      findings = [
+        ...findings,
+        ...visualResult.findings.map((finding) => ({
+          title: finding.title,
+          description: finding.desc,
+          level: normalizeFindingLevel(finding.level),
+          category: "Visual",
+          tone: getToneFromLevel(finding.level),
+          solution: finding.solution,
+          causes: finding.causes ?? [],
+          affectedPages: finding.affectedPages ?? [],
+          affectedCount: finding.affectedCount ?? 0,
+        })),
+      ];
+
+      const visualPages = visualResult.pages.map((page) => ({
+        path: page.path,
+        score: page.score,
+        critical: page.critical,
+        warning: page.warning,
+        lastChecked: page.check,
+      }));
+
+      if (visualPages.length && !pages.length) {
+        pages = visualPages;
+      }
+
+      uxScore = uxScore
+        ? Math.round((uxScore + visualResult.score) / 2)
+        : visualResult.score;
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Visual analizi sırasında bilinmeyen bir hata oluştu.";
+
+      findings.push({
+        title: "Visual QA analizi tamamlanamadı",
+        description: message,
+        level: "ORTA",
+        category: "Visual",
+        tone: "orange",
+        solution:
+          "Görsel assetleri, img/picture yapılarını ve medya embedlerini kontrol edin.",
+      });
+    }
+  }
+
+  if (shouldRunForms) {
+    try {
+      const formResult = await analyzeForms(scan.url, {
+        selectedPages: sitemapPages.map((page) => page.path),
+      });
+
+      findings = [
+        ...findings,
+        ...formResult.findings.map((finding) => ({
+          title: finding.title,
+          description: finding.desc,
+          level: normalizeFindingLevel(finding.level),
+          category: "Forms",
+          tone: getToneFromLevel(finding.level),
+          solution: finding.solution,
+          causes: finding.causes ?? [],
+          affectedPages: finding.affectedPages ?? [],
+          affectedCount: finding.affectedCount ?? 0,
+        })),
+      ];
+
+      const formPages = formResult.pages.map((page) => ({
+        path: page.path,
+        score: page.score,
+        critical: page.critical,
+        warning: page.warning,
+        lastChecked: page.check,
+      }));
+
+      if (formPages.length && !pages.length) {
+        pages = formPages;
+      }
+
+      uxScore = uxScore
+        ? Math.round((uxScore + formResult.score) / 2)
+        : formResult.score;
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Form analizi sırasında bilinmeyen bir hata oluştu.";
+
+      findings.push({
+        title: "Form Kontrolleri analizi tamamlanamadı",
+        description: message,
+        level: "ORTA",
+        category: "Forms",
+        tone: "orange",
+        solution:
+          "Form alanlarını, label bağlantılarını, validasyon kurallarını ve submit davranışını kontrol edin.",
       });
     }
   }

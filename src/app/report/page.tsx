@@ -1529,7 +1529,7 @@ function Modal({
   return (
     <div
       onClick={onClose}
-      className="fixed inset-0 z-50 flex cursor-pointer items-center justify-center bg-black/60 px-5 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex cursor-pointer items-start justify-center overflow-y-auto bg-black/60 px-5 backdrop-blur-sm"
     >
       <div
         onClick={(event) => event.stopPropagation()}

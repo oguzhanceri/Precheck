@@ -326,6 +326,14 @@ function isFindingAllowedForModules(
     return true;
   }
 
+  if (uxEnabled && category.includes("visual")) {
+    return true;
+  }
+
+  if (uxEnabled && category.includes("gorsel")) {
+    return true;
+  }
+
   if (uxEnabled && title.includes("mobilde tasan")) {
     return true;
   }
@@ -340,16 +348,16 @@ function buildSuggestions(
   const suggestions: Suggestion[] = [];
 
   const allModulesEnabled = activeModules.length === 0;
+
   const seoEnabled = allModulesEnabled || activeModules.includes("seo");
   const performanceEnabled =
     allModulesEnabled || activeModules.includes("performance");
-  const uxEnabled =
-    allModulesEnabled ||
-    activeModules.includes("ux") ||
-    activeModules.includes("responsive") ||
-    activeModules.includes("interaction") ||
-    activeModules.includes("visual") ||
-    activeModules.includes("forms");
+  const uxEnabled = allModulesEnabled || activeModules.includes("ux");
+  const responsiveEnabled =
+    allModulesEnabled || activeModules.includes("responsive");
+  const interactionEnabled =
+    allModulesEnabled || activeModules.includes("interaction");
+  const visualEnabled = allModulesEnabled || activeModules.includes("visual");
   const accessibilityEnabled =
     allModulesEnabled || activeModules.includes("accessibility");
   const securityEnabled =
@@ -363,6 +371,22 @@ function buildSuggestions(
     suggestions.push(...buildUxSuggestions(findings));
   }
 
+  if (responsiveEnabled) {
+    suggestions.push(...buildUxSuggestions(findings));
+  }
+
+  if (interactionEnabled) {
+    suggestions.push(...buildInteractionSuggestions(findings));
+  }
+
+  if (visualEnabled) {
+    suggestions.push(...buildVisualSuggestions(findings));
+  }
+
+  if (activeModules.includes("forms") || allModulesEnabled) {
+    suggestions.push(...buildFormsSuggestions(findings));
+  }
+
   if (performanceEnabled) {
     suggestions.push(...buildPerformanceSuggestions(findings));
   }
@@ -373,6 +397,10 @@ function buildSuggestions(
 
   if (securityEnabled) {
     suggestions.push(...buildSecuritySuggestions(findings));
+  }
+
+  if (uxEnabled) {
+    suggestions.push(...buildFormsSuggestions(findings));
   }
 
   if (!suggestions.length) {
@@ -806,6 +834,388 @@ function buildUxSuggestions(findings: SerializedFinding[]): Suggestion[] {
         "overflow-x: hidden yerine taşan elemanı tespit edin.",
         "Geniş tablo, medya ve slider alanlarını ayrı ayrı kontrol edin.",
         "Kök layout içinde 100vw + padding kaynaklı taşma olup olmadığını inceleyin.",
+      ],
+    });
+  }
+
+  return suggestions.slice(0, 5);
+}
+
+function buildInteractionSuggestions(
+  findings: SerializedFinding[],
+): Suggestion[] {
+  const interactionFindings = findings.filter((finding) => {
+    const value = normalizeText(`${finding.category} ${finding.title}`);
+
+    return value.includes("interaction");
+  });
+
+  if (!interactionFindings.length) return [];
+
+  const suggestions: Suggestion[] = [];
+
+  const hasButtonIssue = interactionFindings.some((finding) => {
+    const value = normalizeText(finding.title);
+    return value.includes("buton") || value.includes("button");
+  });
+
+  const hasLinkIssue = interactionFindings.some((finding) => {
+    const value = normalizeText(finding.title);
+    return value.includes("link") || value.includes("href");
+  });
+
+  const hasAriaExpanded = interactionFindings.some((finding) => {
+    const value = normalizeText(finding.title);
+    return value.includes("aria-expanded");
+  });
+
+  const hasSkipLink = interactionFindings.some((finding) => {
+    const value = normalizeText(finding.title);
+    return value.includes("skip link");
+  });
+
+  const hasModalDialog = interactionFindings.some((finding) => {
+    const value = normalizeText(finding.title);
+    return value.includes("modal") || value.includes("dialog");
+  });
+
+  const hasKeyboard = interactionFindings.some((finding) => {
+    const value = normalizeText(finding.title);
+    return (
+      value.includes("klavye") ||
+      value.includes("keyboard") ||
+      value.includes("tabindex")
+    );
+  });
+
+  if (hasButtonIssue) {
+    suggestions.push({
+      title: "Buton erişilebilirliğini iyileştirin",
+      desc: "Açıklamasız veya yalnızca ikonla verilen butonlar kullanıcıların aksiyonun ne işe yaradığını anlamasını zorlaştırır.",
+      impact: "Yüksek",
+      actions: [
+        "İkon butonlara aria-label ekleyin.",
+        "Buton içinde görünür açıklayıcı metin kullanın.",
+        "Semantik olmayan tıklanabilir elemanlar yerine <button> kullanın.",
+      ],
+    });
+  }
+
+  if (hasLinkIssue) {
+    suggestions.push({
+      title: "Link davranışlarını netleştirin",
+      desc: "Açıklamasız veya geçersiz href kullanan linkler hem kullanıcı deneyimini hem de klavye navigasyonunu zayıflatır.",
+      impact: "Orta",
+      actions: [
+        'href="#" yerine gerçek URL kullanın.',
+        "Buton davranışı gerekiyorsa <a> yerine <button> kullanın.",
+        "İkon linklerde aria-label veya görünür metin ekleyin.",
+      ],
+    });
+  }
+
+  if (hasAriaExpanded) {
+    suggestions.push({
+      title: "Açılır alanların durum bilgisini ekleyin",
+      desc: "Dropdown, accordion ve collapse yapılarında açık/kapalı durumun ekran okuyuculara aktarılması gerekir.",
+      impact: "Orta",
+      actions: [
+        "Trigger elemana aria-expanded ekleyin.",
+        "Açılıp kapanan içerikle aria-controls bağlantısı kurun.",
+        "Açık/kapalı durum değiştikçe aria-expanded değerini güncelleyin.",
+      ],
+    });
+  }
+
+  if (hasSkipLink) {
+    suggestions.push({
+      title: "Klavye kullanıcıları için skip link ekleyin",
+      desc: "Skip link, klavye kullanıcılarının her sayfada menüyü tekrar geçmeden ana içeriğe ulaşmasını sağlar.",
+      impact: "Düşük",
+      actions: [
+        'Sayfanın başına href="#main" olan bir skip link ekleyin.',
+        'Ana içerik alanına id="main" verin.',
+        "Skip linki focus olduğunda görünür hale getirin.",
+      ],
+    });
+  }
+
+  if (hasModalDialog) {
+    suggestions.push({
+      title: "Modal ve dialog erişilebilirliğini tamamlayın",
+      desc: "Modal açıldığında kullanıcı bağlam değişimini anlamalı ve klavye odağı modal içinde yönetilmelidir.",
+      impact: "Orta",
+      actions: [
+        'Modal container için role="dialog" ve aria-modal="true" kullanın.',
+        "Modal başlığını aria-labelledby ile bağlayın.",
+        "Focus trap ve ESC ile kapatma davranışını ekleyin.",
+      ],
+    });
+  }
+
+  if (hasKeyboard) {
+    suggestions.push({
+      title: "Klavye etkileşimlerini güçlendirin",
+      desc: "Mouse ile çalışan etkileşimlerin klavye ile de erişilebilir olması gerekir.",
+      impact: "Yüksek",
+      actions: [
+        "Tıklanabilir div/span yerine semantik button veya link kullanın.",
+        'Gerekirse tabindex="0" ve Enter/Space desteği ekleyin.',
+        "Pozitif tabindex değerlerinden kaçının.",
+      ],
+    });
+  }
+
+  return suggestions.slice(0, 5);
+}
+
+function buildVisualSuggestions(findings: SerializedFinding[]): Suggestion[] {
+  const visualFindings = findings.filter((finding) => {
+    const value = normalizeText(`${finding.category} ${finding.title}`);
+
+    return value.includes("visual") || value.includes("gorsel");
+  });
+
+  if (!visualFindings.length) return [];
+
+  const suggestions: Suggestion[] = [];
+
+  const hasDimensions = visualFindings.some((finding) => {
+    const value = normalizeText(finding.title);
+
+    return value.includes("width") || value.includes("height");
+  });
+
+  const hasSrcset = visualFindings.some((finding) => {
+    const value = normalizeText(finding.title);
+
+    return value.includes("srcset");
+  });
+
+  const hasSizes = visualFindings.some((finding) => {
+    const value = normalizeText(finding.title);
+
+    return value.includes("sizes");
+  });
+
+  const hasWideImages = visualFindings.some((finding) => {
+    const value = normalizeText(finding.title);
+
+    return value.includes("genis") || value.includes("buyuk");
+  });
+
+  const hasLazy = visualFindings.some((finding) => {
+    const value = normalizeText(finding.title);
+
+    return value.includes("lazy");
+  });
+
+  const hasOldFormats = visualFindings.some((finding) => {
+    const value = normalizeText(finding.title);
+
+    return (
+      value.includes("eski format") ||
+      value.includes("jpg") ||
+      value.includes("png")
+    );
+  });
+
+  if (hasDimensions) {
+    suggestions.push({
+      title: "Görsel boyutlarını sabitleyin",
+      desc: "Width ve height değerleri eksik olduğunda tarayıcı görsel alanını önceden ayıramaz ve layout shift oluşabilir.",
+      impact: "Orta",
+      actions: [
+        "Tüm img elemanlarına width ve height attribute ekleyin.",
+        "Dinamik görsellerde aspect-ratio kullanın.",
+        "CMS’den gelen görsel boyutlarını HTML çıktısına dahil edin.",
+      ],
+    });
+  }
+
+  if (hasSrcset) {
+    suggestions.push({
+      title: "Responsive image varyasyonları üretin",
+      desc: "srcset eksik olduğunda mobil cihazlar gereğinden büyük görseller indirebilir.",
+      impact: "Orta",
+      actions: [
+        "Mobil, tablet ve desktop için farklı görsel boyutları üretin.",
+        "img elemanlarına srcset ekleyin.",
+        "Kritik görsellerde modern image component kullanın.",
+      ],
+    });
+  }
+
+  if (hasSizes) {
+    suggestions.push({
+      title: "sizes attribute değerlerini tamamlayın",
+      desc: "srcset kullanılıp sizes verilmediğinde tarayıcı doğru görsel varyasyonunu seçemeyebilir.",
+      impact: "Düşük",
+      actions: [
+        "srcset kullanan görsellerde sizes attribute ekleyin.",
+        "Breakpointlere göre gerçek render genişliğini tanımlayın.",
+        "Mobilde gereksiz büyük görsel indirilmediğini kontrol edin.",
+      ],
+    });
+  }
+
+  if (hasWideImages) {
+    suggestions.push({
+      title: "Çok büyük görselleri optimize edin",
+      desc: "1600px üzeri görseller mobil ve tablet cihazlarda gereksiz bant genişliği tüketebilir.",
+      impact: "Orta",
+      actions: [
+        "Görselleri breakpoint bazlı küçültün.",
+        "Hero dışındaki büyük görsellerde lazy loading kullanın.",
+        "Mobil için ayrı düşük boyutlu görsel varyasyonları üretin.",
+      ],
+    });
+  }
+
+  if (hasLazy) {
+    suggestions.push({
+      title: "Lazy loading stratejisini düzenleyin",
+      desc: "İlk ekran dışındaki görsellerin eager yüklenmesi sayfa açılışını yavaşlatabilir.",
+      impact: "Orta",
+      actions: [
+        'Fold altındaki görsellere loading="lazy" ekleyin.',
+        'Hero/LCP görselinde fetchpriority="high" kullanın.',
+        "Lazy ve priority kullanımını aynı görselde çakıştırmayın.",
+      ],
+    });
+  }
+
+  if (hasOldFormats) {
+    suggestions.push({
+      title: "Modern görsel formatlarına geçin",
+      desc: "JPG/PNG görseller WebP veya AVIF formatlarına göre daha büyük dosya boyutlarına sahip olabilir.",
+      impact: "Düşük",
+      actions: [
+        "Uygun görselleri WebP veya AVIF formatına dönüştürün.",
+        "PNG formatını sadece transparanlık gereken yerlerde kullanın.",
+        "CMS upload pipeline içine otomatik format dönüşümü ekleyin.",
+      ],
+    });
+  }
+
+  return suggestions.slice(0, 5);
+}
+
+function buildFormsSuggestions(findings: SerializedFinding[]): Suggestion[] {
+  const formFindings = findings.filter((finding) => {
+    const value = normalizeText(`${finding.category} ${finding.title}`);
+
+    return value.includes("forms") || value.includes("form");
+  });
+
+  if (!formFindings.length) return [];
+
+  const suggestions: Suggestion[] = [];
+
+  const hasLabel = formFindings.some((finding) => {
+    const value = normalizeText(finding.title);
+    return value.includes("label");
+  });
+
+  const hasAutocomplete = formFindings.some((finding) => {
+    const value = normalizeText(finding.title);
+    return value.includes("autocomplete");
+  });
+
+  const hasRequired = formFindings.some((finding) => {
+    const value = normalizeText(finding.title);
+    return value.includes("required") || value.includes("zorunlu");
+  });
+
+  const hasCheckboxRadio = formFindings.some((finding) => {
+    const value = normalizeText(finding.title);
+    return value.includes("checkbox") || value.includes("radio");
+  });
+
+  const hasSubmit = formFindings.some((finding) => {
+    const value = normalizeText(finding.title);
+    return value.includes("submit");
+  });
+
+  const hasActionMethod = formFindings.some((finding) => {
+    const value = normalizeText(finding.title);
+    return value.includes("action") || value.includes("method");
+  });
+
+  if (hasLabel) {
+    suggestions.push({
+      title: "Form label bağlantılarını tamamlayın",
+      desc: "Label eksik alanlar kullanıcıların formu doğru anlamasını ve ekran okuyucuların alanları tanımasını zorlaştırır.",
+      impact: "Yüksek",
+      actions: [
+        "Her input için görünür label kullanın.",
+        "Input id değeri ile label for değerini eşleştirin.",
+        "Label kullanılamıyorsa aria-label veya aria-labelledby ekleyin.",
+      ],
+    });
+  }
+
+  if (hasAutocomplete) {
+    suggestions.push({
+      title: "Form otomatik doldurma desteğini ekleyin",
+      desc: "Autocomplete eksik olduğunda kullanıcılar e-posta, telefon ve ad gibi bilgileri tekrar tekrar manuel girmek zorunda kalır.",
+      impact: "Orta",
+      actions: [
+        'E-posta alanlarında autocomplete="email" kullanın.',
+        'Telefon alanlarında autocomplete="tel" kullanın.',
+        'Ad-soyad alanlarında autocomplete="name" veya ilgili değerleri kullanın.',
+      ],
+    });
+  }
+
+  if (hasRequired) {
+    suggestions.push({
+      title: "Required alan açıklamalarını güçlendirin",
+      desc: "Zorunlu alanlar açıklama veya hata mesajına bağlı olmadığında kullanıcı neyi düzeltmesi gerektiğini anlayamayabilir.",
+      impact: "Orta",
+      actions: [
+        "Zorunlu alanlara yardımcı metin ekleyin.",
+        "Hata mesajını aria-describedby ile inputa bağlayın.",
+        "Required alanların görsel ve metinsel olarak belirtildiğinden emin olun.",
+      ],
+    });
+  }
+
+  if (hasCheckboxRadio) {
+    suggestions.push({
+      title: "Checkbox ve radio alanlarını etiketleyin",
+      desc: "Checkbox/radio alanlarında label eksikse kullanıcı hangi seçeneği işaretlediğini net anlayamayabilir.",
+      impact: "Orta",
+      actions: [
+        "Her checkbox/radio için label kullanın.",
+        "Seçenek gruplarında fieldset ve legend yapısı kullanın.",
+        "Tıklanabilir alanı label ile genişletin.",
+      ],
+    });
+  }
+
+  if (hasSubmit) {
+    suggestions.push({
+      title: "Form submit davranışını semantik hale getirin",
+      desc: "Submit butonu veya submit davranışı eksik olduğunda Enter ile gönderim ve klavye deneyimi bozulabilir.",
+      impact: "Orta",
+      actions: [
+        'Form içinde type="submit" olan button kullanın.',
+        "Submit aksiyonunu sadece click handler'a bağlı bırakmayın.",
+        "Form gönderiminden önce validasyon ve hata mesajlarını net gösterin.",
+      ],
+    });
+  }
+
+  if (hasActionMethod) {
+    suggestions.push({
+      title: "Form action ve method değerlerini netleştirin",
+      desc: "Action veya method eksik olduğunda formun gönderim davranışı HTML seviyesinde belirsiz kalır.",
+      impact: "Düşük",
+      actions: [
+        'Form için method="post" veya uygun method değerini tanımlayın.',
+        "Client-side submit olsa bile progressive enhancement davranışını düşünün.",
+        "Backend endpoint veya submit handler yapısını netleştirin.",
       ],
     });
   }

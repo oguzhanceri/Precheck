@@ -1,16 +1,7 @@
-type ResponsiveFindingLevel = "critical" | "high" | "medium" | "low";
-
-type ResponsiveFinding = {
-  title: string;
-  desc: string;
-  level: ResponsiveFindingLevel;
-  icon: string;
-  category: "responsive";
-  solution: string;
-  causes: string[];
-  affectedPages: string[];
-  affectedCount: number;
-};
+import { analyzeViewportResponsive } from "./analyzers/responsive/runner";
+import { RESPONSIVE_VIEWPORTS } from "./analyzers/responsive/viewports";
+import { createResponsiveFinding } from "./analyzers/responsive/utils";
+import type { ResponsiveFinding } from "./analyzers/responsive/types";
 
 type ResponsivePageResult = {
   path: string;
@@ -18,6 +9,7 @@ type ResponsivePageResult = {
   critical: number;
   warning: number;
   check: string;
+  testedViewports: string[];
 };
 
 type ResponsiveAnalyzeOptions = {
@@ -75,11 +67,21 @@ async function analyzeResponsivePage(
   });
 
   if (!response.ok) {
-    throw new Error(`Responsive analizi başarısız oldu. HTTP ${response.status}`);
+    throw new Error(
+      `Responsive analizi başarısız oldu. HTTP ${response.status}`,
+    );
   }
 
   const html = await response.text();
-  const findings = analyzeHtmlResponsive(html);
+
+  const htmlFindings = analyzeHtmlResponsive(html);
+  const viewportFindings = await analyzeViewportResponsive(url);
+
+  const findings = [
+    ...htmlFindings.filter((finding) => finding.level === "critical"),
+    ...viewportFindings,
+  ];
+
   const score = calculateResponsiveScore(findings);
   const path = getPathFromUrl(url);
 
@@ -98,6 +100,7 @@ async function analyzeResponsivePage(
         (finding) => finding.level === "medium" || finding.level === "low",
       ).length,
       check: buildTimeLabel(index),
+      testedViewports: RESPONSIVE_VIEWPORTS.map((viewport) => viewport.name),
     },
   };
 }
@@ -107,53 +110,6 @@ function analyzeHtmlResponsive(html: string) {
 
   const hasViewport = Boolean(
     /<meta[^>]+name=["']viewport["'][^>]*>/i.test(html),
-  );
-
-  const styleBlocks = html.match(/<style\b[^>]*>[\s\S]*?<\/style>/gi) ?? [];
-  const inlineStyleMatches = html.match(/style=["'][^"']*["']/gi) ?? [];
-  const tableMatches = html.match(/<table\b[^>]*>/gi) ?? [];
-  const imgMatches = html.match(/<img\b[^>]*>/gi) ?? [];
-  const videoMatches = html.match(/<video\b[^>]*>/gi) ?? [];
-  const iframeMatches = html.match(/<iframe\b[^>]*>/gi) ?? [];
-
-  const allCssText = [...styleBlocks, ...inlineStyleMatches].join("\n");
-
-  const fixedWidthMatches = allCssText.match(
-    /(?:^|[;{\s])width\s*:\s*(?:[5-9]\d{2,}|[1-9]\d{3,})px/gi,
-  ) ?? [];
-
-  const minWidthMatches = allCssText.match(
-    /(?:^|[;{\s])min-width\s*:\s*(?:[3-9]\d{2,}|[1-9]\d{3,})px/gi,
-  ) ?? [];
-
-  const overflowXMatches = allCssText.match(
-    /overflow-x\s*:\s*(scroll|auto|hidden)/gi,
-  ) ?? [];
-
-  const fixedPositionMatches = allCssText.match(/position\s*:\s*fixed/gi) ?? [];
-
-  const mediaQueryMatches = allCssText.match(/@media\b/gi) ?? [];
-
-  const riskyTables = tableMatches.length;
-
-  const wideMedia = [...imgMatches, ...videoMatches, ...iframeMatches].filter(
-    (tag) => {
-      const width = matchAttrFromTag(tag, "width");
-      const style = matchAttrFromTag(tag, "style");
-
-      const numericWidth = width ? Number(width.replace(/[^\d]/g, "")) : 0;
-
-      if (numericWidth >= 700) return true;
-
-      if (
-        style &&
-        /width\s*:\s*(?:[7-9]\d{2,}|[1-9]\d{3,})px/i.test(style)
-      ) {
-        return true;
-      }
-
-      return false;
-    },
   );
 
   if (!hasViewport) {
@@ -173,147 +129,7 @@ function analyzeHtmlResponsive(html: string) {
     );
   }
 
-  if (fixedWidthMatches.length > 0) {
-    findings.push(
-      createResponsiveFinding({
-        title: "Sabit genişlik kullanımı tespit edildi",
-        desc: `${fixedWidthMatches.length} yerde büyük px tabanlı width kullanımı bulundu.`,
-        level: "high",
-        icon: "layout",
-        solution:
-          "Sabit px width değerlerini max-width, width: 100%, clamp() veya responsive class yapısına çevirin.",
-        causes: [
-          "Componentlerde masaüstü tasarım ölçüleri doğrudan px olarak verilmiş olabilir.",
-          "Mobil breakpointlerde width değerleri override edilmiyor olabilir.",
-          "Kart, tablo veya medya alanları responsive davranmayabilir.",
-        ],
-      }),
-    );
-  }
-
-  if (minWidthMatches.length > 0) {
-    findings.push(
-      createResponsiveFinding({
-        title: "Büyük min-width değerleri var",
-        desc: `${minWidthMatches.length} yerde mobilde taşma riski oluşturabilecek min-width bulundu.`,
-        level: "high",
-        icon: "maximize",
-        solution:
-          "Büyük min-width değerlerini mobil breakpointlerde kaldırın veya max-width: 100% ile sınırlayın.",
-        causes: [
-          "Desktop layout için verilen min-width mobilde devam ediyor olabilir.",
-          "Grid veya card componentleri küçük ekranlarda daralamıyor olabilir.",
-          "Yatay scroll riski oluşabilir.",
-        ],
-      }),
-    );
-  }
-
-  if (overflowXMatches.length > 0) {
-    findings.push(
-      createResponsiveFinding({
-        title: "overflow-x kullanımı tespit edildi",
-        desc: `${overflowXMatches.length} yerde overflow-x kullanımı bulundu. Bu gerçek taşma sorununu gizliyor olabilir.`,
-        level: "medium",
-        icon: "move-horizontal",
-        solution:
-          "overflow-x ile gizlemek yerine taşan elemanın gerçek genişlik sebebini düzeltin.",
-        causes: [
-          "Sayfada yatay taşma oluştuğu için overflow-x: hidden kullanılmış olabilir.",
-          "Tablo, slider veya geniş medya alanları mobilde taşabilir.",
-          "Kök layout genişliği viewport dışına çıkıyor olabilir.",
-        ],
-      }),
-    );
-  }
-
-  if (riskyTables > 0) {
-    findings.push(
-      createResponsiveFinding({
-        title: "Tablo responsive riski",
-        desc: `${riskyTables} tablo bulundu. Tablolar mobilde yatay taşma oluşturabilir.`,
-        level: "medium",
-        icon: "table",
-        solution:
-          "Tabloları mobilde scroll container içine alın veya kart yapısına dönüştürün.",
-        causes: [
-          "Tablo kolonları küçük ekranlarda daralamıyor olabilir.",
-          "table-layout ve wrapper yapısı responsive ayarlanmamış olabilir.",
-          "Mobilde kullanıcı yatay scroll yapmak zorunda kalabilir.",
-        ],
-      }),
-    );
-  }
-
-  if (wideMedia.length > 0) {
-    findings.push(
-      createResponsiveFinding({
-        title: "Geniş medya elemanları tespit edildi",
-        desc: `${wideMedia.length} medya elemanında mobilde taşma riski oluşturan genişlik bulundu.`,
-        level: "medium",
-        icon: "image",
-        solution:
-          "Görsel, video ve iframe elemanlarına max-width: 100%; height: auto; kurallarını uygulayın.",
-        causes: [
-          "Medya elemanlarına sabit width verilmiş olabilir.",
-          "Iframe veya video embedleri responsive wrapper içinde olmayabilir.",
-          "Mobil breakpointlerde medya genişliği yeniden hesaplanmıyor olabilir.",
-        ],
-      }),
-    );
-  }
-
-  if (fixedPositionMatches.length > 5) {
-    findings.push(
-      createResponsiveFinding({
-        title: "Çok fazla fixed pozisyonlu eleman var",
-        desc: `${fixedPositionMatches.length} yerde position: fixed kullanımı bulundu.`,
-        level: "low",
-        icon: "pin",
-        solution:
-          "Mobilde fixed elemanların viewportu kapatmadığından ve içerik üzerine binmediğinden emin olun.",
-        causes: [
-          "Header, floating button, cookie bar veya modal yapıları fixed konumlandırılmış olabilir.",
-          "Mobilde fixed elemanlar form alanlarını veya CTA'ları kapatabilir.",
-          "Z-index ve yükseklik yönetimi karmaşıklaşabilir.",
-        ],
-      }),
-    );
-  }
-
-  if (mediaQueryMatches.length === 0) {
-    findings.push(
-      createResponsiveFinding({
-        title: "Responsive breakpoint izi bulunamadı",
-        desc: "Sayfa HTML içindeki stil bloklarında media query tespit edilemedi.",
-        level: "low",
-        icon: "monitor",
-        solution:
-          "CSS dosyaları harici yükleniyorsa sorun olmayabilir. Ancak sayfanın mobil breakpointlerini manuel kontrol edin.",
-        causes: [
-          "Responsive stiller harici CSS dosyalarında olabilir.",
-          "Sayfada breakpoint kullanılmıyor olabilir.",
-          "Mobil görünüm sadece global framework classlarıyla yönetiliyor olabilir.",
-        ],
-      }),
-    );
-  }
-
   return findings;
-}
-
-function createResponsiveFinding(
-  finding: Omit<
-    ResponsiveFinding,
-    "category" | "affectedPages" | "affectedCount"
-  >,
-): ResponsiveFinding {
-  return {
-    ...finding,
-    category: "responsive",
-    affectedPages: [],
-    affectedCount: 0,
-  };
 }
 
 function mergeFindings(pageResults: SinglePageResponsiveResult[]) {
@@ -322,7 +138,6 @@ function mergeFindings(pageResults: SinglePageResponsiveResult[]) {
   pageResults.forEach((result) => {
     result.findings.forEach((finding) => {
       const key = `${finding.title}-${finding.level}`;
-
       const existing = map.get(key);
 
       if (!existing) {
@@ -391,15 +206,6 @@ function getPathFromUrl(url: string) {
   if (!path || path === "/") return "/";
 
   return path;
-}
-
-function matchAttrFromTag(tag: string, attr: string) {
-  const regex = new RegExp(`${attr}=["']([^"']*)["']`, "i");
-  const match = tag.match(regex);
-
-  if (!match) return null;
-
-  return match[1].trim();
 }
 
 function calculateResponsiveScore(findings: ResponsiveFinding[]) {
