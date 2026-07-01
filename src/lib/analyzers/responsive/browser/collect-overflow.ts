@@ -5,10 +5,24 @@ type CollectOverflowParams = {
   allElements: HTMLElement[];
 };
 
+type CollectOverflowResult = {
+  bodyOverflowRisk: boolean;
+  overflowContainers: ElementCause[];
+};
+
 export function collectOverflowContainers({
   allElements,
-}: CollectOverflowParams): ElementCause[] {
-  return allElements
+}: CollectOverflowParams): CollectOverflowResult {
+  const bodyStyles = window.getComputedStyle(document.body);
+  const htmlStyles = window.getComputedStyle(document.documentElement);
+
+  const bodyOverflowRisk =
+    bodyStyles.overflow === "hidden" ||
+    bodyStyles.overflowX === "hidden" ||
+    htmlStyles.overflow === "hidden" ||
+    htmlStyles.overflowX === "hidden";
+
+  const overflowContainers = allElements
     .filter((element) => {
       const styles = window.getComputedStyle(element);
 
@@ -26,4 +40,9 @@ export function collectOverflowContainers({
     })
     .map(toElementCause)
     .slice(0, 10);
+
+  return {
+    bodyOverflowRisk,
+    overflowContainers,
+  };
 }

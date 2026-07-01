@@ -26,7 +26,7 @@ export function collectResponsiveData(): BrowserResponsiveData {
     viewportWidth,
   });
 
-  const overflowContainers = collectOverflowContainers({
+  const overflowResult = collectOverflowContainers({
     allElements,
   });
 
@@ -42,6 +42,7 @@ export function collectResponsiveData(): BrowserResponsiveData {
   const riskyMedia = collectRiskyMedia({
     viewportWidth,
   });
+
   const riskyIframes = collectRiskyIframes({
     viewportWidth,
   });
@@ -73,7 +74,8 @@ export function collectResponsiveData(): BrowserResponsiveData {
     hasHorizontalScroll,
 
     overflowingElements,
-    overflowContainers,
+    bodyOverflowRisk: overflowResult.bodyOverflowRisk,
+    overflowContainers: overflowResult.overflowContainers,
     fixedWidthElements,
 
     riskyTables,

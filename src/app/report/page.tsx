@@ -34,6 +34,7 @@ type Finding = {
   tone: FindingTone;
   solution: string;
   causes?: string[];
+  evidence?: string[];
   affectedPages?: string[];
   affectedCount?: number;
 };
@@ -673,17 +674,20 @@ export default function ReportPage() {
             title="Bulgu Detayı"
             onClose={() => setSelectedFinding(null)}
           />
+
           <div className="mt-6 space-y-4">
             <InfoBox
               label={selectedFinding.level}
               title={selectedFinding.title}
               text={selectedFinding.desc}
             />
+
             <InfoBox
               label="Çözüm Önerisi"
               title="Nasıl düzeltilir?"
               text={selectedFinding.solution}
             />
+
             {selectedFinding.causes?.length ? (
               <div className="rounded-xl border border-white/8 bg-[#080d18]/70 p-5">
                 <p className="text-[12px] font-extrabold tracking-[0.08em] text-[#aebcff] uppercase">
@@ -697,6 +701,21 @@ export default function ReportPage() {
                 </ul>
               </div>
             ) : null}
+
+            {selectedFinding.evidence?.length ? (
+              <div className="rounded-xl border border-white/8 bg-[#080d18]/70 p-5">
+                <p className="text-[12px] font-extrabold tracking-[0.08em] text-[#aebcff] uppercase">
+                  Kanıtlar
+                </p>
+
+                <ul className="mt-4 space-y-2 text-[13px] font-medium leading-5 text-[#d2d8e6]">
+                  {selectedFinding.evidence.map((item) => (
+                    <li key={item}>• {item}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
             {selectedFinding.affectedPages?.length ? (
               <div className="rounded-xl border border-white/8 bg-[#080d18]/70 p-5">
                 <p className="text-[12px] font-extrabold tracking-[0.08em] text-[#aebcff] uppercase">
@@ -1795,6 +1814,7 @@ function normalizeFindings(rawFindings: unknown[]): Finding[] {
         solution:
           "Bu bulguyu ilgili sayfa veya modül üzerinde inceleyip önerilen düzeltmeyi uygulayın.",
         causes: [],
+        evidence: [],
         affectedPages: [],
         affectedCount: 0,
       };
@@ -1830,6 +1850,7 @@ function normalizeFindings(rawFindings: unknown[]): Finding[] {
         getString(record.fix) ??
         "Bu bulguya bağlı dosya, sayfa veya komponenti kontrol ederek rapordaki önerileri uygulayın.",
       causes: parseStringArrayValue(record.causes),
+      evidence: parseStringArrayValue(record.evidence),
       affectedPages,
       affectedCount: getNumber(record.affectedCount) ?? affectedPages.length,
     };

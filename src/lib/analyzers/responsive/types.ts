@@ -35,9 +35,11 @@ export type ResponsiveFinding = {
   icon: string;
   category: "responsive";
   solution: string;
-  causes: string[];
+  causes?: string[];
+  evidence?: string[];
   affectedPages: string[];
   affectedCount: number;
+  affectedViewports?: string[];
 };
 
 export type ResponsiveCheckContext = {

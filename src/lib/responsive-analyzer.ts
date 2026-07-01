@@ -145,6 +145,8 @@ function mergeFindings(pageResults: SinglePageResponsiveResult[]) {
           ...finding,
           affectedPages: [result.path],
           affectedCount: 1,
+          causes: finding.causes ?? [],
+          evidence: finding.evidence ?? [],
         });
 
         return;
@@ -156,7 +158,11 @@ function mergeFindings(pageResults: SinglePageResponsiveResult[]) {
       }
 
       existing.causes = Array.from(
-        new Set([...existing.causes, ...finding.causes]),
+        new Set([...(existing.causes ?? []), ...(finding.causes ?? [])]),
+      );
+
+      existing.evidence = Array.from(
+        new Set([...(existing.evidence ?? []), ...(finding.evidence ?? [])]),
       );
     });
   });

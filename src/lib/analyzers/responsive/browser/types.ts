@@ -6,6 +6,7 @@ export type BrowserResponsiveData = {
   hasHorizontalScroll: boolean;
 
   overflowingElements: ElementCause[];
+  bodyOverflowRisk: boolean;
   overflowContainers: ElementCause[];
   fixedWidthElements: ElementCause[];
 

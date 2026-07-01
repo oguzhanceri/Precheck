@@ -1,4 +1,5 @@
-import { collectResponsiveData } from "./browser/collect";
+import type { BrowserResponsiveData } from "./browser/types";
+import { createCollectorScript } from "./browser/create-collector-script";
 import { checkNavigation } from "./checks/navigation";
 import { checkClippedText } from "./checks/clipped-text";
 import { checkTouchTargets } from "./checks/touch-target";
@@ -11,9 +12,9 @@ import { checkFlexLayout } from "./checks/flex";
 import { checkOverflowHidden } from "./checks/overflow-hidden";
 import { checkFixedWidth } from "./checks/fixed-width";
 import { chromium, type Page } from "playwright";
-import type { ResponsiveFinding, ViewportCheckResult } from "./types";
+import type { ResponsiveFinding } from "./types";
 import { RESPONSIVE_VIEWPORTS } from "./viewports";
-import { createResponsiveFinding, formatElementCause } from "./utils";
+import { createResponsiveFinding, mergeResponsiveFindings } from "./utils";
 import { checkHorizontalScroll } from "./checks/horizontal-scroll";
 
 export async function analyzeViewportResponsive(url: string) {
@@ -72,25 +73,33 @@ export async function analyzeViewportResponsive(url: string) {
     await browser.close();
   }
 
-  return findings;
+  return mergeResponsiveFindings(findings);
 }
 
 async function runResponsiveViewportChecks(
   page: Page,
-): Promise<ViewportCheckResult> {
-  return page.evaluate((collectResponsiveDataSource) => {
-    const collectResponsiveData = new Function(
-      `return ${collectResponsiveDataSource}`,
-    )() as () => ViewportCheckResult;
+): Promise<BrowserResponsiveData> {
+  const collectorScript = await createCollectorScript();
 
-    return collectResponsiveData();
-  }, collectResponsiveData.toString());
+  await page.addScriptTag({
+    content: collectorScript,
+  });
+
+  return page.evaluate(() => {
+    const collector = window.__PRECHECK_COLLECT_RESPONSIVE_DATA__;
+
+    if (!collector) {
+      throw new Error("Responsive browser collector yüklenemedi.");
+    }
+
+    return collector();
+  });
 }
 
 function createViewportFindings(
   viewportName: string,
   viewportWidth: number,
-  result: ViewportCheckResult,
+  result: BrowserResponsiveData,
 ) {
   const findings: ResponsiveFinding[] = [];
 
@@ -229,5 +238,8 @@ function createViewportFindings(
     }),
   );
 
-  return findings;
+  return findings.map((finding) => ({
+    ...finding,
+    affectedViewports: [`${viewportName} - ${viewportWidth}px`],
+  }));
 }

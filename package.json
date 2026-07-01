@@ -3,10 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "npm run build:responsive-collector && next dev",
+    "build": "npm run build:responsive-collector && next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "build:responsive-collector": "node scripts/build-responsive-collector.mjs"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
@@ -21,6 +22,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "esbuild": "^0.28.1",
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
     "tailwindcss": "^4",
