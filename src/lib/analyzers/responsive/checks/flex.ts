@@ -1,4 +1,8 @@
-import type { ElementCause, ResponsiveFinding, ResponsiveViewport } from "../types";
+import type {
+  ElementCause,
+  ResponsiveFinding,
+  ResponsiveViewport,
+} from "../types";
 import { createResponsiveFinding, formatElementCause } from "../utils";
 
 export function checkFlexLayout(params: {
@@ -11,6 +15,11 @@ export function checkFlexLayout(params: {
     return [];
   }
 
+  const formattedElements = flexNoWrapRisks
+    .map((element) => formatElementCause(element))
+    .filter(Boolean)
+    .slice(0, 8);
+
   return [
     createResponsiveFinding({
       title: "Flex layout mobilde kırılmıyor",
@@ -19,7 +28,8 @@ export function checkFlexLayout(params: {
       icon: "columns",
       solution:
         "Mobil breakpointlerde flex-wrap: wrap, flex-direction: column veya min-width: 0 kullanın.",
-      causes: flexNoWrapRisks.map((element) => formatElementCause(element)),
+      causes: formattedElements,
+      evidence: formattedElements,
     }),
   ];
 }

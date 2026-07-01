@@ -15,6 +15,11 @@ export function checkFixedElements(params: {
     return [];
   }
 
+  const formattedElements = fixedOverlapRisks
+    .map((element) => formatElementCause(element))
+    .filter(Boolean)
+    .slice(0, 8);
+
   return [
     createResponsiveFinding({
       title: "Fixed eleman mobil içerikle çakışabilir",
@@ -23,7 +28,8 @@ export function checkFixedElements(params: {
       icon: "pin",
       solution:
         "Mobilde fixed header/floating bar yüksekliğini azaltın veya ana içeriğe uygun padding-top ekleyin.",
-      causes: fixedOverlapRisks.map((element) => formatElementCause(element)),
+      causes: formattedElements,
+      evidence: formattedElements,
     }),
   ];
 }

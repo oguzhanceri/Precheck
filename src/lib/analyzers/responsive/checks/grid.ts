@@ -1,4 +1,8 @@
-import type { ElementCause, ResponsiveFinding, ResponsiveViewport } from "../types";
+import type {
+  ElementCause,
+  ResponsiveFinding,
+  ResponsiveViewport,
+} from "../types";
 import { createResponsiveFinding, formatElementCause } from "../utils";
 
 export function checkGridLayout(params: {
@@ -11,6 +15,11 @@ export function checkGridLayout(params: {
     return [];
   }
 
+  const formattedElements = gridOverflowRisks
+    .map((element) => formatElementCause(element))
+    .filter(Boolean)
+    .slice(0, 8);
+
   return [
     createResponsiveFinding({
       title: "Grid layout mobilde taşıyor",
@@ -19,7 +28,8 @@ export function checkGridLayout(params: {
       icon: "grid",
       solution:
         "Mobilde grid-template-columns değerini 1 kolona düşürün veya minmax(0, 1fr) kullanın.",
-      causes: gridOverflowRisks.map((element) => formatElementCause(element)),
+      causes: formattedElements,
+      evidence: formattedElements,
     }),
   ];
 }

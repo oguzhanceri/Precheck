@@ -35,9 +35,14 @@ type SerializedFinding = {
   category: string;
   tone: string;
   solution: string;
+
   affectedPages: string[];
   affectedCount: number;
+  affectedViewports: string[];
+
   causes: string[];
+  evidence: string[];
+
   createdAt: Date;
 };
 
@@ -188,6 +193,10 @@ function serializeScan(scan: ScanWithRelations) {
         : [],
       affectedCount: finding.affectedCount ?? 0,
       causes: finding.causes ? JSON.parse(finding.causes) : [],
+      evidence: finding.evidence ? JSON.parse(finding.evidence) : [],
+      affectedViewports: finding.affectedViewports
+        ? JSON.parse(finding.affectedViewports)
+        : [],
       createdAt: finding.createdAt,
     }),
   );

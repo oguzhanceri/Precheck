@@ -22,6 +22,7 @@ export function checkMedia(params: {
       causes: [
         `${viewport.name} viewportunda medya genişliği viewportu aşıyor.`,
       ],
+      evidence: [`${viewport.name} görünümünde ${riskyMedia} riskli medya elemanı tespit edildi.`],
     }),
   ];
 }

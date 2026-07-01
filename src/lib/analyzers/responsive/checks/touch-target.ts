@@ -23,6 +23,7 @@ export function checkTouchTargets(params: {
         "Mobil link veya buton padding değerleri düşük olabilir.",
         "Menü, footer veya form elemanları dokunmak için küçük kalıyor olabilir.",
       ],
+      evidence: [`${viewport.name} görünümünde ${smallTouchTargets} küçük touch target tespit edildi.`],
     }),
   ];
 }

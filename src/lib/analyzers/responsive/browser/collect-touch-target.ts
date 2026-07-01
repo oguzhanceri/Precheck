@@ -1,9 +1,15 @@
+import { shouldIgnoreResponsiveElement } from "./ignore";
+
 export function collectSmallTouchTargets(): number {
   return Array.from(
     document.querySelectorAll<HTMLElement>(
       "a, button, input, select, textarea, [role='button']",
     ),
   ).filter((element) => {
+    if (shouldIgnoreResponsiveElement(element)) {
+      return false;
+    }
+
     const rect = element.getBoundingClientRect();
 
     if (rect.width <= 0 || rect.height <= 0) return false;

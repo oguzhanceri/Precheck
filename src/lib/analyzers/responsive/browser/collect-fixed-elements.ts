@@ -1,4 +1,5 @@
 import type { ElementCause } from "../types";
+import { shouldIgnoreResponsiveElement } from "./ignore";
 import { toElementCause } from "./shared";
 
 type CollectFixedElementsParams = {
@@ -12,6 +13,10 @@ export function collectFixedOverlapRisks({
 }: CollectFixedElementsParams): ElementCause[] {
   return allElements
     .filter((element) => {
+      if (shouldIgnoreResponsiveElement(element)) {
+        return false;
+      }
+
       const styles = window.getComputedStyle(element);
       const rect = element.getBoundingClientRect();
 

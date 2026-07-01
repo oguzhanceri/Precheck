@@ -22,6 +22,7 @@ export function checkIframe(params: {
       causes: [
         "Youtube, Vimeo, Google Maps veya benzeri iframe embedleri mobilde oranını korumuyor olabilir.",
       ],
+      evidence: [`${viewport.name} görünümünde ${riskyIframes} riskli iframe tespit edildi.`],
     }),
   ];
 }

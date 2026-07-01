@@ -20,6 +20,7 @@ export function checkTables(params: {
       solution:
         "Tabloları overflow-x: auto wrapper içine alın veya mobilde kart/list görünümüne dönüştürün.",
       causes: [`${viewport.name} viewportunda tablo ekran genişliğini aşıyor.`],
+      evidence: [`${viewport.name} görünümünde ${riskyTables} responsive olmayan tablo tespit edildi.`],
     }),
   ];
 }

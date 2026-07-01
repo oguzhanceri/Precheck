@@ -1,4 +1,8 @@
-import type { ElementCause, ResponsiveFinding, ResponsiveViewport } from "../types";
+import type {
+  ElementCause,
+  ResponsiveFinding,
+  ResponsiveViewport,
+} from "../types";
 import { createResponsiveFinding, formatElementCause } from "../utils";
 
 export function checkFixedWidth(params: {
@@ -11,6 +15,11 @@ export function checkFixedWidth(params: {
     return [];
   }
 
+  const formattedElements = fixedWidthElements
+    .map((element) => formatElementCause(element))
+    .filter(Boolean)
+    .slice(0, 8);
+
   return [
     createResponsiveFinding({
       title: "Mobil viewportta geniş eleman var",
@@ -19,7 +28,12 @@ export function checkFixedWidth(params: {
       icon: "layout",
       solution:
         "Mobil breakpointlerde width: 100%, max-width: 100%, min-width: 0 veya uygun grid/flex kırılımı uygulayın.",
-      causes: fixedWidthElements.map((element) => formatElementCause(element)),
+      causes: [
+        "Mobil breakpointlerde sabit width veya min-width kullanılmış olabilir.",
+        "Header, popup, slider veya container yapısı viewport genişliğini aşacak şekilde ayarlanmış olabilir.",
+        "Flex veya grid child elemanlarında min-width: 0 eksik olabilir.",
+      ],
+      evidence: formattedElements,
     }),
   ];
 }

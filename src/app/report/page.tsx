@@ -35,6 +35,7 @@ type Finding = {
   solution: string;
   causes?: string[];
   evidence?: string[];
+  affectedViewports?: string[];
   affectedPages?: string[];
   affectedCount?: number;
 };
@@ -713,6 +714,25 @@ export default function ReportPage() {
                     <li key={item}>• {item}</li>
                   ))}
                 </ul>
+              </div>
+            ) : null}
+
+            {selectedFinding.affectedViewports?.length ? (
+              <div className="rounded-xl border border-white/8 bg-[#080d18]/70 p-5">
+                <p className="text-[12px] font-extrabold tracking-[0.08em] text-[#aebcff] uppercase">
+                  Etkilenen Viewportlar
+                </p>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {selectedFinding.affectedViewports.map((viewport) => (
+                    <span
+                      key={viewport}
+                      className="rounded-full border border-white/8 bg-white/5 px-3 py-2 text-[12px] font-bold text-[#dce2ef]"
+                    >
+                      {viewport}
+                    </span>
+                  ))}
+                </div>
               </div>
             ) : null}
 
@@ -1815,6 +1835,7 @@ function normalizeFindings(rawFindings: unknown[]): Finding[] {
           "Bu bulguyu ilgili sayfa veya modül üzerinde inceleyip önerilen düzeltmeyi uygulayın.",
         causes: [],
         evidence: [],
+        affectedViewports: [],
         affectedPages: [],
         affectedCount: 0,
       };
@@ -1851,6 +1872,7 @@ function normalizeFindings(rawFindings: unknown[]): Finding[] {
         "Bu bulguya bağlı dosya, sayfa veya komponenti kontrol ederek rapordaki önerileri uygulayın.",
       causes: parseStringArrayValue(record.causes),
       evidence: parseStringArrayValue(record.evidence),
+      affectedViewports: parseStringArrayValue(record.affectedViewports),
       affectedPages,
       affectedCount: getNumber(record.affectedCount) ?? affectedPages.length,
     };

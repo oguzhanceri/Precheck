@@ -23,6 +23,7 @@ export function checkNavigation(params: {
         "Desktop navigation mobil/tablet görünümde açık kalıyor olabilir.",
         "Menü itemleri container genişliğine sığmıyor olabilir.",
       ],
+      evidence: [`${viewport.name} görünümünde navigation container taşması tespit edildi.`],
     }),
   ];
 }

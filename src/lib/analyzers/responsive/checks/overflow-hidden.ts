@@ -1,4 +1,8 @@
-import type { ElementCause, ResponsiveFinding, ResponsiveViewport } from "../types";
+import type {
+  ElementCause,
+  ResponsiveFinding,
+  ResponsiveViewport,
+} from "../types";
 import { createResponsiveFinding, formatElementCause } from "../utils";
 
 export function checkOverflowHidden(params: {
@@ -12,6 +16,11 @@ export function checkOverflowHidden(params: {
     return [];
   }
 
+  const formattedElements = overflowContainers
+    .map((element) => formatElementCause(element))
+    .filter(Boolean)
+    .slice(0, 8);
+
   return [
     createResponsiveFinding({
       title: "Overflow hidden gerçek taşmayı gizliyor olabilir",
@@ -20,7 +29,12 @@ export function checkOverflowHidden(params: {
       icon: "eye-off",
       solution:
         "overflow-x: hidden ile problemi gizlemek yerine taşan child elemanın width, min-width veya transform değerini düzeltin.",
-      causes: overflowContainers.map((element) => formatElementCause(element)),
+      causes: formattedElements.length
+        ? formattedElements
+        : ["body/html üzerinde overflow-x: hidden kullanımı tespit edildi."],
+      evidence: formattedElements.length
+        ? formattedElements
+        : ["body/html üzerinde overflow-x: hidden kullanımı tespit edildi."],
     }),
   ];
 }

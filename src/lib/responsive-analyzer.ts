@@ -147,6 +147,7 @@ function mergeFindings(pageResults: SinglePageResponsiveResult[]) {
           affectedCount: 1,
           causes: finding.causes ?? [],
           evidence: finding.evidence ?? [],
+          affectedViewports: finding.affectedViewports ?? [],
         });
 
         return;
@@ -163,6 +164,13 @@ function mergeFindings(pageResults: SinglePageResponsiveResult[]) {
 
       existing.evidence = Array.from(
         new Set([...(existing.evidence ?? []), ...(finding.evidence ?? [])]),
+      );
+
+      existing.affectedViewports = Array.from(
+        new Set([
+          ...(existing.affectedViewports ?? []),
+          ...(finding.affectedViewports ?? []),
+        ]),
       );
     });
   });

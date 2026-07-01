@@ -23,6 +23,7 @@ export function checkClippedText(params: {
         "Container yüksekliği sabit kalmış olabilir.",
         "Mobilde font boyutu veya satır yüksekliği alana sığmıyor olabilir.",
       ],
+      evidence: [`${viewport.name} görünümünde ${clippedTextElements} olası kırpılmış metin tespit edildi.`],
     }),
   ];
 }

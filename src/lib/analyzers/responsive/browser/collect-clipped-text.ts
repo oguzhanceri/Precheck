@@ -1,3 +1,5 @@
+import { shouldIgnoreResponsiveElement } from "./ignore";
+
 type CollectClippedTextParams = {
   allElements: HTMLElement[];
 };
@@ -6,6 +8,10 @@ export function collectClippedTextElements({
   allElements,
 }: CollectClippedTextParams): number {
   return allElements.filter((element) => {
+    if (shouldIgnoreResponsiveElement(element)) {
+      return false;
+    }
+
     const styles = window.getComputedStyle(element);
 
     const clipsText =

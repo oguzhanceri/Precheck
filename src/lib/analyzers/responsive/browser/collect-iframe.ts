@@ -1,3 +1,5 @@
+import { shouldIgnoreResponsiveElement } from "./ignore";
+
 type CollectIframeParams = {
   viewportWidth: number;
 };
@@ -8,6 +10,10 @@ export function collectRiskyIframes({
   return Array.from(
     document.querySelectorAll<HTMLIFrameElement>("iframe"),
   ).filter((iframe) => {
+    if (shouldIgnoreResponsiveElement(iframe)) {
+      return false;
+    }
+
     const rect = iframe.getBoundingClientRect();
     const parent = iframe.parentElement;
     const parentStyles = parent ? window.getComputedStyle(parent) : null;

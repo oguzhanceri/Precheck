@@ -1,4 +1,5 @@
 import type { ElementCause } from "../types";
+import { shouldIgnoreResponsiveElement } from "./ignore";
 import { toElementCause } from "./shared";
 
 type CollectOverflowParams = {
@@ -24,6 +25,10 @@ export function collectOverflowContainers({
 
   const overflowContainers = allElements
     .filter((element) => {
+      if (shouldIgnoreResponsiveElement(element)) {
+        return false;
+      }
+
       const styles = window.getComputedStyle(element);
 
       const hidesOverflow =

@@ -49,6 +49,8 @@ type ReportFinding = {
   causes?: string[];
   affectedPages?: string[];
   affectedCount?: number;
+  evidence?: string[];
+  affectedViewports?: string[];
 };
 
 type ReportVital = {
@@ -199,10 +201,14 @@ async function createReportData(scanId: string, report: ReportData) {
         tone: finding.tone,
         solution: finding.solution,
         causes: finding.causes ? JSON.stringify(finding.causes) : null,
+        evidence: finding.evidence ? JSON.stringify(finding.evidence) : null,
         affectedPages: finding.affectedPages
           ? JSON.stringify(finding.affectedPages)
           : null,
         affectedCount: finding.affectedCount ?? null,
+        affectedViewports: finding.affectedViewports
+          ? JSON.stringify(finding.affectedViewports)
+          : null,
       })),
     });
   }
@@ -591,8 +597,10 @@ async function buildRealReport(scan: ScanSeed): Promise<ReportData> {
           tone: getToneFromLevel(finding.level),
           solution: finding.solution,
           causes: finding.causes ?? [],
+          evidence: finding.evidence ?? [],
           affectedPages: finding.affectedPages ?? [],
           affectedCount: finding.affectedCount ?? 0,
+          affectedViewports: finding.affectedViewports ?? [],
         })),
       ];
 
